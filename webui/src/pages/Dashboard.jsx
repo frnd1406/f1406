@@ -93,7 +93,12 @@ function Dashboard() {
   return (
     <div style={{ maxWidth: '900px', margin: '40px auto', padding: '0 16px' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{ margin: 0 }}>NAS.AI Monitoring</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 style={{ margin: 0 }}>NAS.AI Monitoring</h1>
+          <span style={{ padding: '4px 8px', borderRadius: '12px', background: '#1f2937', color: '#fff', fontSize: '12px' }}>
+            Version 1.0
+          </span>
+        </div>
         <button
           onClick={() => {
             localStorage.removeItem('accessToken')

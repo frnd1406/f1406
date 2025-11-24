@@ -129,10 +129,23 @@ services:
       - agent-network
       - nas-network
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nas-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - agent-network
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  ollama_data:
     driver: local
 
 networks:

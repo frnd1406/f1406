@@ -2,10 +2,19 @@
 
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 echo "==> Checking for git..."
 if ! command -v git >/dev/null 2>&1; then
   echo "git is not installed. Please install git and rerun."
   exit 1
+fi
+
+# Handle stale index locks
+if [ -f .git/index.lock ]; then
+  echo "==> Removing stale git index lock"
+  rm -f .git/index.lock
 fi
 
 if [ ! -d .git ]; then
@@ -13,6 +22,17 @@ if [ ! -d .git ]; then
   git init
 else
   echo "==> Git repository already initialized"
+fi
+
+echo "==> Ensuring main branch"
+git branch -M main || true
+
+# Safety check: critical secrets must be ignored
+if git check-ignore -q infrastructure/api/.env; then
+  echo "==> Confirmed: infrastructure/api/.env is ignored"
+else
+  echo "ERROR: infrastructure/api/.env is not ignored. Fix .gitignore before proceeding."
+  exit 1
 fi
 
 echo "==> Adding files"
@@ -42,8 +62,6 @@ else
 fi
 
 if git remote get-url origin >/dev/null 2>&1; then
-  echo "==> Ensuring main branch"
-  git branch -M main || true
   echo "==> Pushing to origin/main"
   git push -u origin main
 else

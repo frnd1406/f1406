@@ -82,3 +82,18 @@ func (r *SystemAlertsRepository) HasOpenBySeverity(ctx context.Context, severity
 
 	return true, nil
 }
+
+// Create inserts a new alert.
+func (r *SystemAlertsRepository) Create(ctx context.Context, severity, message string) error {
+	query := `
+		INSERT INTO system_alerts (severity, message)
+		VALUES ($1, $2)
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, severity, message); err != nil {
+		r.logger.WithError(err).Error("failed to create alert")
+		return fmt.Errorf("failed to create alert: %w", err)
+	}
+
+	return nil
+}

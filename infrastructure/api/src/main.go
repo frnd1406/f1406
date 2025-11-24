@@ -197,6 +197,7 @@ func main() {
 		v1.POST("/system/metrics", handlers.SystemMetricsHandler(systemMetricsRepo, cfg.MonitoringToken, logger))
 		v1.GET("/system/metrics", handlers.SystemMetricsListHandler(systemMetricsRepo, logger))
 		v1.GET("/system/alerts", handlers.SystemAlertsListHandler(systemAlertsRepo, logger))
+		v1.POST("/system/alerts", handlers.SystemAlertCreateHandler(systemAlertsRepo, logger))
 		v1.POST("/system/alerts/:id/resolve", handlers.SystemAlertResolveHandler(systemAlertsRepo, logger))
 	}
 

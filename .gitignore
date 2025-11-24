@@ -12,6 +12,12 @@ infrastructure/api/.env
 infrastructure/api/bin/
 **/.gocache/
 **/.cache/
+.cache/
+**/.npm/
+**/.npx/
+**/.parcel-cache/
+**/.turbo/
+**/.next/
 .obsidian/
 .npm/
 .nvm/

@@ -132,7 +132,7 @@ func main() {
 	r.Use(
 		middleware.PanicRecovery(logger), // 1. Catch panics
 		middleware.RequestID(),           // 2. Generate request ID
-		middleware.SecurityHeaders(),     // 3. Security headers
+		middleware.GinSecureHeaders(),    // 3. Security headers
 		middleware.CORS(cfg, logger),     // 4. CORS whitelist
 		rateLimiter.Middleware(),         // 5. Rate limiting
 		middleware.AuditLogger(logger),   // 6. Audit logging
@@ -202,9 +202,11 @@ func main() {
 	}
 
 	// Create HTTP server
+	secureHandler := middleware.SecureHeaders(r)
+
 	srv := &http.Server{
 		Addr:           "0.0.0.0:" + cfg.Port,
-		Handler:        r,
+		Handler:        secureHandler,
 		ReadTimeout:    15 * time.Second,
 		WriteTimeout:   15 * time.Second,
 		IdleTimeout:    60 * time.Second,

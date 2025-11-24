@@ -1,25 +1,33 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
-// SecurityHeaders middleware adds security headers to all responses
-// Protects against XSS, Clickjacking, MIME sniffing, etc.
-func SecurityHeaders() gin.HandlerFunc {
+// SecureHeaders (http.Handler style) sets strict security headers.
+func SecureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Del("X-Powered-By")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GinSecureHeaders adapts SecureHeaders for gin.
+func GinSecureHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Strict-Transport-Security: force HTTPS (1 year)
-		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-
-		// X-Frame-Options: block framing (clickjacking)
-		c.Header("X-Frame-Options", "DENY")
-
-		// X-Content-Type-Options: disable MIME sniffing
-		c.Header("X-Content-Type-Options", "nosniff")
-
-		// Referrer-Policy: reduce referrer leakage
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-
+		h := c.Writer.Header()
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Del("X-Powered-By")
 		c.Next()
 	}
 }

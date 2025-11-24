@@ -27,6 +27,7 @@ const (
 	severityWarning            = "WARNING"
 	cpuThreshold       float64 = 80.0
 	ramThreshold       float64 = 90.0
+	aiPollInterval             = 10 * time.Second
 )
 
 type averages struct {
@@ -54,6 +55,9 @@ func main() {
 		"lookback": lookback.String(),
 		"db":       dbURL,
 	}).Info("analysis agent started")
+
+	// Start AI analysis loop (parallel to metric loop)
+	go startAIAnalysisLoop(db, logger)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -83,7 +87,9 @@ func runCycle(ctx context.Context, db *sqlx.DB, lookback time.Duration, logger *
 		if err := ensureAlert(ctx, db, severityCritical, msg, logger); err != nil {
 			logger.WithError(err).Warn("analysis: failed to ensure CPU alert")
 		}
-		triggerAI(msg, logger)
+		if _, err := callLocalAI(msg, logger); err != nil {
+			logger.WithError(err).Warn("analysis: AI call failed for CPU alert")
+		}
 	}
 
 	if avg.RAM.Valid && avg.RAM.Float64 > ramThreshold {
@@ -107,7 +113,7 @@ type aiResponse struct {
 func triggerAI(alertMsg string, logger *logrus.Logger) {
 	client := &http.Client{Timeout: 8 * time.Second}
 	reqBody := aiRequest{
-		Model:  "phi3:mini",
+		Model:  "tinyllama",
 		Prompt: "You are a Sysadmin. Analyze this alert and give 1 short linux command to fix it. Alert: " + alertMsg,
 		Stream: false,
 	}
@@ -155,6 +161,108 @@ func triggerAI(alertMsg string, logger *logrus.Logger) {
 	}
 
 	logger.WithField("ai_suggestion", aiResp.Response).Info("ai recommendation for critical alert")
+}
+
+type pendingAlert struct {
+	ID      string `db:"id"`
+	Message string `db:"message"`
+}
+
+func startAIAnalysisLoop(db *sqlx.DB, logger *logrus.Logger) {
+	ticker := time.NewTicker(aiPollInterval)
+	defer ticker.Stop()
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+		processPendingAlerts(ctx, db, logger)
+		cancel()
+		<-ticker.C
+	}
+}
+
+func processPendingAlerts(ctx context.Context, db *sqlx.DB, logger *logrus.Logger) {
+	var alerts []pendingAlert
+	query := `
+		SELECT id, message
+		FROM system_alerts
+		WHERE severity = 'CRITICAL' AND ai_analysis IS NULL
+	`
+
+	if err := db.SelectContext(ctx, &alerts, query); err != nil {
+		logger.WithError(err).Warn("ai loop: failed to fetch pending alerts")
+		return
+	}
+
+	for _, a := range alerts {
+		resp, err := callLocalAI(a.Message, logger)
+		if err != nil {
+			logger.WithError(err).WithField("alert_id", a.ID).Warn("ai loop: failed to get AI response")
+			continue
+		}
+
+		if err := updateAIAnalysis(ctx, db, a.ID, resp); err != nil {
+			logger.WithError(err).WithField("alert_id", a.ID).Warn("ai loop: failed to update ai_analysis")
+			continue
+		}
+
+		logger.WithFields(logrus.Fields{
+			"alert_id": a.ID,
+		}).Info("ai loop: stored ai_analysis")
+	}
+}
+
+func updateAIAnalysis(ctx context.Context, db *sqlx.DB, id, analysis string) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE system_alerts
+		SET ai_analysis = $1
+		WHERE id = $2
+	`, analysis, id)
+	return err
+}
+
+func callLocalAI(alertMsg string, logger *logrus.Logger) (string, error) {
+	client := &http.Client{Timeout: 8 * time.Second}
+	reqBody := aiRequest{
+		Model:  "tinyllama",
+		Prompt: "You are a Linux Sysadmin. Analyze this error message and provide a single, short command to fix it. Error: " + alertMsg,
+		Stream: false,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("marshal ai request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, aiEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("build ai request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("ai request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("ai non-2xx status: %d", resp.StatusCode)
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("ai read response: %w", err)
+	}
+
+	var aiResp aiResponse
+	if err := json.Unmarshal(respBody, &aiResp); err != nil {
+		return "", fmt.Errorf("ai unmarshal response: %w", err)
+	}
+
+	return aiResp.Response, nil
 }
 
 func fetchAverages(ctx context.Context, db *sqlx.DB, lookback time.Duration) (averages, error) {

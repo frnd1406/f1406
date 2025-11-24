@@ -100,7 +100,11 @@ CREATE TABLE IF NOT EXISTS system_alerts (
     severity VARCHAR(20) NOT NULL,
     message TEXT NOT NULL,
     is_resolved BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ai_analysis TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_system_alerts_open ON system_alerts(is_resolved, created_at DESC);
+
+-- Phase 6: ensure ai_analysis column exists
+ALTER TABLE system_alerts ADD COLUMN IF NOT EXISTS ai_analysis TEXT;

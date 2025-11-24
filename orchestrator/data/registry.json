@@ -1,0 +1,23 @@
+[
+  {
+    "name": "nas-api",
+    "url": "https://felix-freund.com/health",
+    "registered_at": "2025-11-22T18:00:00Z",
+    "tags": ["core", "api", "production"],
+    "metadata": {"language": "go", "type": "backend", "env": "production"}
+  },
+  {
+    "name": "nas-api-local",
+    "url": "http://localhost:8080/health",
+    "registered_at": "2025-11-22T18:00:00Z",
+    "tags": ["core", "api", "development"],
+    "metadata": {"language": "go", "type": "backend", "env": "development"}
+  },
+  {
+    "name": "webui",
+    "url": "http://localhost:3001/health",
+    "registered_at": "2025-11-22T18:00:00Z",
+    "tags": ["frontend", "react", "development"],
+    "metadata": {"framework": "react+vite", "type": "frontend", "env": "development"}
+  }
+]

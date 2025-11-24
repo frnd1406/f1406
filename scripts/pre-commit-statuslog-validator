@@ -1,0 +1,55 @@
+#!/bin/bash
+# Status-Log Namenskonventions-Validator
+# Kann als Pre-Commit Hook verwendet werden
+
+echo "🔍 Validiere Status-Log Dateinamen..."
+
+errors=0
+
+# Durchsuche alle Status-Log Dateien
+for file in status/*/*.md status/*/*/*.md status/*/*/*/*.md; do
+  # Überspringe wenn Datei nicht existiert
+  [ -f "$file" ] || continue
+
+  basename=$(basename "$file")
+
+  # Erlaube README.md und OPEN-RISKS.md
+  if [[ "$basename" == "README.md" ]] || \
+     [[ "$basename" == "OPEN-RISKS.md" ]] || \
+     [[ "$basename" == "STATUS-MAP.md" ]]; then
+    continue
+  fi
+
+  # Erlaube CVE-Format (security/fixed/)
+  if [[ "$file" =~ status/security/fixed/ ]]; then
+    continue
+  fi
+
+  # Prüfe Format: NNN_YYYYMMDD_lowercase.md oder NNNa_YYYYMMDD_lowercase.md
+  if ! [[ "$basename" =~ ^[0-9]{3}[a-z]?_[0-9]{8}_[a-z0-9-]+\.md$ ]]; then
+    echo "❌ FEHLER: Ungültiger Dateiname: $file"
+    echo "   Erwartet: NNN_YYYYMMDD_lowercase-description.md"
+    echo "   Oder:     NNNa_YYYYMMDD_lowercase-description.md (für Duplikate)"
+    echo "   Beispiel: 001_20251115_security-audit.md"
+    echo "   Beispiel: 019a_20251113_agent-directives.md"
+    errors=$((errors + 1))
+  fi
+
+  # Warne bei UPPERCASE in Beschreibung
+  if [[ "$basename" =~ _[A-Z] ]]; then
+    echo "⚠️  WARNUNG: UPPERCASE erkannt in: $file"
+    echo "   Beschreibung sollte lowercase sein"
+    echo "   Beispiel: statt 'SECRETS-ROTATION' nutze 'secrets-rotation'"
+    errors=$((errors + 1))
+  fi
+done
+
+if [ $errors -gt 0 ]; then
+  echo ""
+  echo "❌ $errors Datei(en) entsprechen nicht der Namenskonvention!"
+  echo "📖 Siehe: status/DocumentationAgent/035_20251115_status-structure-analysis.md"
+  exit 1
+fi
+
+echo "✅ Alle Dateinamen konform"
+exit 0

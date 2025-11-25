@@ -18,6 +18,7 @@ export default function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="files" element={<Files />} />
           <Route path="metrics" element={<Metrics />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

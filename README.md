@@ -1,26 +1,42 @@
-# NAS.AI System
+# NAS AI System - Autonomous Server Guardian
 
-Ein intelligentes, sicheres und modulares NAS-System, gesteuert durch KI-Agenten.
+Ein schlankes Agenten-Setup, das deinen Server rund um die Uhr überwacht, kritische Zustände erkennt und Sicherheits-Checks automatisiert. Optimiert für Raspberry Pi, lauffähig auf jeder Docker-Hostumgebung.
 
-## Status
-- Phase 3 Completed – Monitoring & Analysis aktiv.
+## Features
+- 📊 Live Monitoring (CPU, RAM, Disk)
+- 🧠 Intelligent Analysis (Auto-Detection of critical states)
+- 🛡️ Self-Auditing (Internal Pentester checks for Security Headers & Weak Passwords)
+- 🐳 Docker Native (Runs everywhere, specialized for Raspberry Pi)
 
-## 🚀 Quick Start
-1. Architektur: `NAS_AI_SYSTEM.md` (Single Source of Truth)
-2. Dev-Setup: `docs/development/DEV_GUIDE.md`
-3. Security: `docs/security/SECURITY_HANDBOOK.pdf`
-4. Dev-Stack starten:
-   ```bash
-   docker compose -f infrastructure/docker-compose.dev.yml up -d api webui monitoring-agent analysis-agent
-   ```
+## Quick Start
+1) Repository holen
+```bash
+git clone https://github.com/your-org/nas-ai-system.git
+cd nas-ai-system
+```
+2) API-Umgebung vorbereiten
+```bash
+cp infrastructure/api/.env.example infrastructure/api/.env
+```
+3) Stack starten (Dev)
+```bash
+docker compose -f infrastructure/docker-compose.dev.yml up -d --build
+```
 
-## 🛰️ Services (Dev)
-- API (`nas-api`): http://localhost:8080
-- WebUI (`nas-webui`): http://localhost:3001 (spricht mit API auf 8080)
-- Monitoring Agent (`nas-monitoring-agent`): sendet System-Metriken an `/api/v1/system/metrics`
-- Analysis Agent (`nas-analysis-agent`): bewertet Metriken, schreibt Alerts in `system_alerts`
+## Screenshots
+- Dashboard Overview (Placeholder)
+- Alert Details (Placeholder)
+- Security Audit (Placeholder)
 
-## 📂 Struktur
-- `docs/` - Handbücher, Pläne und Policies.
-- `infrastructure/` - Source Code (API, WebUI, Agents, Compose).
-- `status/` - Agenten-Logs und Reports.
+## Dienste (Dev)
+- API: http://localhost:8080
+- WebUI: http://localhost:3001
+- Monitoring Agent: sendet System-Metriken an `/api/v1/system/metrics`
+- Analysis Agent: bewertet Metriken, schreibt Alerts in `system_alerts`
+- Pentester Agent: prüft Security Headers & einfache Schwachstellen
+
+## Struktur
+- `infrastructure/` – Source Code für API, WebUI, Agents, Docker Compose.
+- `docs/` – Guides, Policies, Architektur.
+- `status/` – Status-Logs & Reports der Agenten.
+- `scripts/` – Admin-Skripte (z.B. `git_savepoint.sh`).

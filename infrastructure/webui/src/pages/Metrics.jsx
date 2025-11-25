@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  `${window.location.protocol}//${window.location.hostname}:8080`;
 const POLL_MS = 5000;
 
 export default function Metrics() {
@@ -25,7 +27,10 @@ export default function Metrics() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/v1/system/alerts`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/v1/system/alerts`, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -89,3 +94,4 @@ export default function Metrics() {
     </div>
   );
 }
+import { authHeaders } from "../utils/auth";

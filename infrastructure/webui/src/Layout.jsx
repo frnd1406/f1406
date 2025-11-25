@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { getAuth } from "./utils/auth";
 
 const navLinks = [
   { to: "/dashboard", label: "Dashboard" },
@@ -9,6 +10,7 @@ const navLinks = [
 
 export default function Layout({ title = "NAS.AI" }) {
   const location = useLocation();
+  const { accessToken } = getAuth();
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -40,6 +42,11 @@ export default function Layout({ title = "NAS.AI" }) {
                 </li>
               );
             })}
+            {!accessToken && (
+              <li>
+                <Link to="/login">Login</Link>
+              </li>
+            )}
           </ul>
         </nav>
       </aside>

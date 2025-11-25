@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { authHeaders } from "../utils/auth";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  `${window.location.protocol}//${window.location.hostname}:8080`;
 
 function joinPath(base, name) {
   if (!base || base === "/") {
@@ -23,7 +26,7 @@ export default function Files() {
     try {
       const res = await fetch(
         `${API_BASE}/api/v1/storage/files?path=${encodeURIComponent(target)}`,
-        { credentials: "include" }
+        { credentials: "include", headers: authHeaders() }
       );
       if (!res.ok) {
         throw new Error("Failed to load files");
@@ -54,6 +57,7 @@ export default function Files() {
         method: "POST",
         body: form,
         credentials: "include",
+        headers: authHeaders(),
       });
       if (!res.ok) {
         throw new Error("Upload failed");
@@ -73,6 +77,7 @@ export default function Files() {
       `${API_BASE}/api/v1/storage/download?path=${encodeURIComponent(target)}`,
       {
         credentials: "include",
+        headers: authHeaders(),
       }
     );
     if (!res.ok) {
@@ -95,6 +100,7 @@ export default function Files() {
       {
         method: "DELETE",
         credentials: "include",
+        headers: authHeaders(),
       }
     );
     if (!res.ok) {

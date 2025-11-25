@@ -52,7 +52,7 @@ services:
       MONITORING_TOKEN: "monitoring-token-dev-123456"
       DATABASE_URL: "postgres://nas_user:nas_dev_password@postgres:5432/nas_db?sslmode=disable"
       REDIS_URL: "redis:6379"
-      CORS_ORIGINS: "http://localhost:5173,http://localhost:4173,http://192.168.178.52:5173,http://192.168.178.52:4173,http://localhost:3001"
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:4173,http://192.168.178.52:5173,http://192.168.178.52:4173,http://localhost:3001,http://192.168.178.52:3001"
       FRONTEND_URL: "http://192.168.178.52:5173"
       EMAIL_FROM: "nas.ai@example.com"
       RATE_LIMIT_PER_MIN: 100
@@ -71,15 +71,15 @@ services:
 
   webui:
     build:
-      context: ..
-      dockerfile: infrastructure/webui/Dockerfile
+      context: ./webui
+      dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: "http://localhost:8080"
+        VITE_API_BASE_URL: "http://192.168.178.52:8080"
     container_name: nas-webui
     ports:
       - "3001:80"
     environment:
-      VITE_API_BASE_URL: "http://localhost:8080"
+      VITE_API_BASE_URL: "http://192.168.178.52:8080"
     depends_on:
       api:
         condition: service_started

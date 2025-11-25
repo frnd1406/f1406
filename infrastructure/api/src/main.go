@@ -109,6 +109,10 @@ func main() {
 	passwordService := services.NewPasswordService()
 	tokenService := services.NewTokenService(redis, logger)
 	emailService := services.NewEmailService(cfg, logger)
+	storageService, err := services.NewStorageService("/mnt/data", logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize storage service")
+	}
 
 	// Create Gin engine (without default middleware)
 	r := gin.New()
@@ -199,6 +203,18 @@ func main() {
 		v1.GET("/system/alerts", handlers.SystemAlertsListHandler(systemAlertsRepo, logger))
 		v1.POST("/system/alerts", handlers.SystemAlertCreateHandler(systemAlertsRepo, logger))
 		v1.POST("/system/alerts/:id/resolve", handlers.SystemAlertResolveHandler(systemAlertsRepo, logger))
+	}
+
+	storageV1 := r.Group("/api/v1/storage")
+	storageV1.Use(
+		middleware.AuthMiddleware(jwtService, redis, logger),
+		middleware.CSRFMiddleware(redis, logger),
+	)
+	{
+		storageV1.GET("/files", handlers.StorageListHandler(storageService, logger))
+		storageV1.POST("/upload", handlers.StorageUploadHandler(storageService, logger))
+		storageV1.GET("/download", handlers.StorageDownloadHandler(storageService, logger))
+		storageV1.DELETE("/delete", handlers.StorageDeleteHandler(storageService, logger))
 	}
 
 	// Create HTTP server

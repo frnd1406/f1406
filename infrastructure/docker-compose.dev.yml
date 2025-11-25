@@ -63,6 +63,8 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    volumes:
+      - nas_data:/mnt/data
     networks:
       - nas-network
       - agent-network
@@ -133,6 +135,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  nas_data:
     driver: local
 
 networks:

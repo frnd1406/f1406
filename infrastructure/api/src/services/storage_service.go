@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 )
+
+var ErrPathTraversal = errors.New("path escapes base directory")
 
 // StorageEntry represents a file or directory item within the storage root.
 type StorageEntry struct {
@@ -50,6 +53,9 @@ func NewStorageService(basePath string, logger *logrus.Logger) (*StorageService,
 }
 
 func (s *StorageService) sanitizePath(rel string) (string, error) {
+	if strings.Contains(rel, "..") {
+		return "", ErrPathTraversal
+	}
 	// Prepend slash so Clean treats it as absolute, then trim to avoid breaking out.
 	cleaned := filepath.Clean("/" + rel)
 	trimmed := strings.TrimPrefix(cleaned, "/")
@@ -61,7 +67,7 @@ func (s *StorageService) sanitizePath(rel string) (string, error) {
 	}
 
 	if abs != s.basePath && !strings.HasPrefix(abs, s.basePath+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path escapes base directory")
+		return "", ErrPathTraversal
 	}
 
 	return abs, nil

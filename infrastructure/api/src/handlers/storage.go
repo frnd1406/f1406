@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func handleStorageError(c *gin.Context, err error, logger *logrus.Logger, requestID string) {
+	status := http.StatusBadRequest
+	if errors.Is(err, services.ErrPathTraversal) {
+		status = http.StatusForbidden
+	}
+	if os.IsNotExist(err) {
+		status = http.StatusNotFound
+	}
+
+	logger.WithFields(logrus.Fields{
+		"request_id": requestID,
+		"error":      err.Error(),
+	}).Warn("storage: request failed")
+
+	c.JSON(status, gin.H{"error": "storage operation failed"})
+}
+
 func StorageListHandler(storage *services.StorageService, logger *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetString("request_id")
@@ -17,11 +35,7 @@ func StorageListHandler(storage *services.StorageService, logger *logrus.Logger)
 
 		items, err := storage.List(path)
 		if err != nil {
-			logger.WithFields(logrus.Fields{
-				"request_id": requestID,
-				"error":      err.Error(),
-			}).Warn("storage: list failed")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid path"})
+			handleStorageError(c, err, logger, requestID)
 			return
 		}
 
@@ -54,11 +68,7 @@ func StorageUploadHandler(storage *services.StorageService, logger *logrus.Logge
 		defer src.Close()
 
 		if err := storage.Save(path, src, fileHeader.Filename); err != nil {
-			logger.WithFields(logrus.Fields{
-				"request_id": requestID,
-				"error":      err.Error(),
-			}).Warn("storage: save failed")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to store file"})
+			handleStorageError(c, err, logger, requestID)
 			return
 		}
 
@@ -77,15 +87,7 @@ func StorageDownloadHandler(storage *services.StorageService, logger *logrus.Log
 
 		file, info, ctype, err := storage.Open(path)
 		if err != nil {
-			status := http.StatusBadRequest
-			if os.IsNotExist(err) {
-				status = http.StatusNotFound
-			}
-			logger.WithFields(logrus.Fields{
-				"request_id": requestID,
-				"error":      err.Error(),
-			}).Warn("storage: download failed")
-			c.JSON(status, gin.H{"error": "file not found"})
+			handleStorageError(c, err, logger, requestID)
 			return
 		}
 		defer file.Close()
@@ -105,15 +107,7 @@ func StorageDeleteHandler(storage *services.StorageService, logger *logrus.Logge
 		}
 
 		if err := storage.Delete(path); err != nil {
-			status := http.StatusBadRequest
-			if os.IsNotExist(err) {
-				status = http.StatusNotFound
-			}
-			logger.WithFields(logrus.Fields{
-				"request_id": requestID,
-				"error":      err.Error(),
-			}).Warn("storage: delete failed")
-			c.JSON(status, gin.H{"error": "delete failed"})
+			handleStorageError(c, err, logger, requestID)
 			return
 		}
 

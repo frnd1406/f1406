@@ -9,6 +9,11 @@ Diese Master-Roadmap beschreibt die komplette Neuimplementierung des NAS.AI Mult
 
 ## Phasen & Meilensteine
 
+### Aktueller Sync (Q4 2025)
+- **AnalysisAgent:** Phase 3 (Alerting) abgeschlossen – Alerts werden erzeugt und müssen in UI/UX eingelastet werden; Phase 4 darf erst nach UI-Gate weiter.
+- **PentesterAgent:** Phase 4 (Red Team) bereits gestartet – muss mit Analysis/Observability rückgekoppelt werden.
+- **Orchestrator:** Phase-Übergänge sind asynchron; Phase 3 wird für AnalysisAgent abgeschlossen, während PentesterAgent in Phase 4 läuft. Roadmap und Tickets sind entsprechend angepasst.
+
 ### Phase 0 – Discovery, Guardrails & Telemetrie (KW 1)
 - **Inventar des bestehenden Codes:** Aufnahme des Codes, insbesondere Monolithen wie `infrastructure/api/src/handlers/files.go:1` und Shell-Orchestrator `infrastructure/orchestrator/bin/orchestrator-event-loop.sh:4`.
 - **Definition der Zielarchitektur:** Klärung von Domain-Layer, Event-Bus und Deployment-Topologie, inklusive Architectural Decision Records (ADRs).

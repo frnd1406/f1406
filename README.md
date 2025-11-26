@@ -1,34 +1,27 @@
-# NAS AI System - Autonomous Server Guardian
+# NAS.AI v1.0 - Secure. Automated. Beautiful.
 
-Ein schlankes Agenten-Setup, das deinen Server rund um die Uhr überwacht, kritische Zustände erkennt und Sicherheits-Checks automatisiert. Optimiert für Raspberry Pi, lauffähig auf jeder Docker-Hostumgebung.
+NAS.AI liefert einen komplett automatisierten, sicherheitsgehärteten Storage-Stack mit Nebula Glassmorphism UI, Auto-Backup-Scheduler und Fail-Fast-Architektur (JWT/CSRF, CORS-Whitelist, Rate-Limits).
 
-## Features
-- 📊 Live Monitoring (CPU, RAM, Disk)
-- 🧠 Intelligent Analysis (Auto-Detection of critical states)
-- 🛡️ Self-Auditing (Internal Pentester checks for Security Headers & Weak Passwords)
-- 🐳 Docker Native (Runs everywhere, specialized for Raspberry Pi)
+## Key Features
+- Auto-Backup Scheduler (Cron, Retention, Zielpfad)
+- Nebula Glassmorphism UI (Files, Backups, Alerts)
+- Fail-Fast Security Architecture (JWT/CSRF, starke Secrets, CORS/Ratelimit)
+- Postgres Persistence & Redis Caching
 
-## Quick Start
-1) Repository holen
+## Quickstart (Production)
+1) Images bereitstellen (z.B. Registry oder lokal gebaut als `nas-api:1.0.0`, `nas-webui:1.0.0`, Agents entsprechend).
+2) Compose starten:
 ```bash
-git clone https://github.com/your-org/nas-ai-system.git
-cd nas-ai-system
+docker compose -f infrastructure/docker-compose.prod.yml up -d
 ```
-2) API-Umgebung vorbereiten
-```bash
-cp infrastructure/api/.env.example infrastructure/api/.env
-```
-3) Stack starten (Dev)
-```bash
-docker compose -f infrastructure/docker-compose.dev.yml up -d --build
-```
+3) UI aufrufen: http://localhost:3001 (API unter http://localhost:8080).
 
-## Screenshots
-- Dashboard Overview (Placeholder)
-- Alert Details (Placeholder)
-- Security Audit (Placeholder)
+## Screenshots (Platzhalter)
+- Dashboard Overview – `docs/img/dashboard-placeholder.png`
+- Backup Planner – `docs/img/backup-placeholder.png`
+- Security & Alerts – `docs/img/alerts-placeholder.png`
 
-## Dienste (Dev)
+## Dienste
 - API: http://localhost:8080
 - WebUI: http://localhost:3001
 - Monitoring Agent: sendet System-Metriken an `/api/v1/system/metrics`
@@ -36,7 +29,7 @@ docker compose -f infrastructure/docker-compose.dev.yml up -d --build
 - Pentester Agent: prüft Security Headers & einfache Schwachstellen
 
 ## Struktur
-- `infrastructure/` – Source Code für API, WebUI, Agents, Docker Compose.
+- `infrastructure/` – API, WebUI, Agents, Docker Compose.
 - `docs/` – Guides, Policies, Architektur.
-- `status/` – Status-Logs & Reports der Agenten.
-- `scripts/` – Admin-Skripte (z.B. `git_savepoint.sh`).
+- `status/` – Saubere Status-Historie ab v1.x (Archiv unter `status/archive`).
+- `scripts/` – Admin- und Security-Skripte.

@@ -1,0 +1,133 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nas-api-postgres
+    environment:
+      POSTGRES_DB: nas_db
+      POSTGRES_USER: nas_user
+      POSTGRES_PASSWORD: nas_dev_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nas_user -d nas_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nas-network
+      - agent-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: nas-api-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+    networks:
+      - nas-network
+      - agent-network
+
+  api:
+    image: nas-api:1.0.0
+    container_name: nas-api
+    environment:
+      PORT: 8080
+      ENV: production
+      GIN_MODE: release
+      LOG_LEVEL: info
+      NODE_ENV: production
+      JWT_SECRET: "CHANGE_ME_STRONG_JWT_SECRET"
+      MONITORING_TOKEN: "CHANGE_ME_MONITORING_TOKEN"
+      DATABASE_URL: "postgres://nas_user:nas_dev_password@postgres:5432/nas_db?sslmode=disable"
+      REDIS_URL: "redis:6379"
+      CORS_ORIGINS: "http://localhost:3001"
+      FRONTEND_URL: "http://localhost:3001"
+      EMAIL_FROM: "nas.ai@example.com"
+      RATE_LIMIT_PER_MIN: 100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - nas_data:/mnt/data
+      - nas_backups:/mnt/backups
+    networks:
+      - nas-network
+      - agent-network
+
+  webui:
+    image: nas-webui:1.0.0
+    container_name: nas-webui
+    environment:
+      NODE_ENV: production
+      VITE_API_BASE_URL: "http://api:8080"
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3001:80"
+    networks:
+      - nas-network
+
+  monitoring-agent:
+    image: nas-monitoring-agent:1.0.0
+    container_name: nas-monitoring-agent
+    environment:
+      API_URL: "http://api:8080/api/v1/system/metrics"
+      MONITORING_TOKEN: "CHANGE_ME_MONITORING_TOKEN"
+      AGENT_ID: "prod-agent"
+      INTERVAL_SECONDS: 10
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - nas-network
+
+  analysis-agent:
+    image: nas-analysis-agent:1.0.0
+    container_name: nas-analysis-agent
+    environment:
+      DATABASE_URL: "postgres://nas_user:nas_dev_password@postgres:5432/nas_db?sslmode=disable"
+      INTERVAL_SECONDS: 10
+      LOOKBACK_SECONDS: 60
+    depends_on:
+      api:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    networks:
+      - nas-network
+
+  pentester-agent:
+    image: nas-pentester-agent:1.0.0
+    container_name: nas-pentester-agent
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - agent-network
+      - nas-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nas_data:
+    driver: local
+  nas_backups:
+    driver: local
+
+networks:
+  nas-network:
+    driver: bridge
+  agent-network:
+    driver: bridge

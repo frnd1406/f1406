@@ -92,6 +92,11 @@ func LoadConfigWithViper() (*Config, error) {
 		// Cloudflare
 		CloudflareAPIToken: v.GetString("cloudflare_api_token"),
 		CloudflareR2Bucket: v.GetString("cloudflare_r2_bucket"),
+
+		// Backup
+		BackupSchedule:       v.GetString("backup_schedule"),
+		BackupRetentionCount: v.GetInt("backup_retention_count"),
+		BackupStoragePath:    v.GetString("backup_storage_path"),
 	}
 
 	// Build DatabaseURL if not provided
@@ -147,6 +152,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("email_from", "NAS.AI <noreply@felix-freund.com>")
 	v.SetDefault("frontend_url", "https://felix-freund.com")
 	v.SetDefault("cloudflare_r2_bucket", "nas-ai-storage")
+
+	// Backup defaults
+	v.SetDefault("backup_schedule", "0 3 * * *")
+	v.SetDefault("backup_retention_count", 7)
+	v.SetDefault("backup_storage_path", "/mnt/backups")
 }
 
 // bindEnvVars explicitly binds environment variables to config keys
@@ -188,6 +198,11 @@ func bindEnvVars(v *viper.Viper) {
 	// Cloudflare
 	_ = v.BindEnv("cloudflare_api_token", "CLOUDFLARE_API_TOKEN")
 	_ = v.BindEnv("cloudflare_r2_bucket", "CLOUDFLARE_R2_BUCKET")
+
+	// Backup
+	_ = v.BindEnv("backup_schedule", "BACKUP_SCHEDULE")
+	_ = v.BindEnv("backup_retention_count", "BACKUP_RETENTION_COUNT")
+	_ = v.BindEnv("backup_storage_path", "BACKUP_STORAGE_PATH")
 }
 
 // validateRequired validates that all required configuration fields are present
@@ -230,6 +245,16 @@ func validateConfig(cfg *Config) error {
 		if origin == "*" {
 			return fmt.Errorf("CRITICAL: CORS wildcard (*) is not allowed - use explicit origins")
 		}
+	}
+
+	if strings.TrimSpace(cfg.BackupSchedule) == "" {
+		return fmt.Errorf("CRITICAL: Backup schedule is required")
+	}
+	if cfg.BackupRetentionCount < 1 {
+		return fmt.Errorf("CRITICAL: Backup retention count must be >= 1")
+	}
+	if strings.TrimSpace(cfg.BackupStoragePath) == "" {
+		return fmt.Errorf("CRITICAL: Backup storage path is required")
 	}
 
 	// Validate environment
@@ -300,6 +325,9 @@ func PrintConfig(cfg *Config) {
 	fmt.Printf("Log Level: %s\n", cfg.LogLevel)
 	fmt.Printf("Rate Limit: %d req/min\n", cfg.RateLimitPerMin)
 	fmt.Printf("CORS Origins: %v\n", cfg.CORSOrigins)
+	fmt.Printf("Backup Schedule: %s\n", cfg.BackupSchedule)
+	fmt.Printf("Backup Retention: %d\n", cfg.BackupRetentionCount)
+	fmt.Printf("Backup Storage Path: %s\n", cfg.BackupStoragePath)
 	fmt.Printf("JWT Secret: %s\n", maskSecret(cfg.JWTSecret))
 	fmt.Printf("Database: %s\n", maskConnectionString(cfg.DatabaseURL))
 	fmt.Printf("Redis: %s\n", cfg.RedisURL)

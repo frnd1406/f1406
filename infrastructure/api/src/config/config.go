@@ -51,6 +51,11 @@ type Config struct {
 
 	// Monitoring (agent ingestion)
 	MonitoringToken string
+
+	// Backup configuration
+	BackupSchedule       string
+	BackupRetentionCount int
+	BackupStoragePath    string
 }
 
 // LoadConfig loads configuration using Viper (supports .env, config.yaml, and env vars)
@@ -64,10 +69,13 @@ func LoadConfig() (*Config, error) {
 func LoadConfigFromEnv() (*Config, error) {
 	cfg := &Config{
 		// Defaults
-		Port:            getEnv("PORT", "8080"),
-		LogLevel:        getEnv("LOG_LEVEL", "info"),
-		Environment:     getEnv("ENV", "development"),
-		RateLimitPerMin: getEnvInt("RATE_LIMIT_PER_MIN", 100),
+		Port:                 getEnv("PORT", "8080"),
+		LogLevel:             getEnv("LOG_LEVEL", "info"),
+		Environment:          getEnv("ENV", "development"),
+		RateLimitPerMin:      getEnvInt("RATE_LIMIT_PER_MIN", 100),
+		BackupSchedule:       getEnv("BACKUP_SCHEDULE", "0 3 * * *"),
+		BackupRetentionCount: getEnvInt("BACKUP_RETENTION_COUNT", 7),
+		BackupStoragePath:    getEnv("BACKUP_STORAGE_PATH", "/mnt/backups"),
 	}
 
 	// CORS Origins (Whitelist)
@@ -133,6 +141,16 @@ func LoadConfigFromEnv() (*Config, error) {
 	cfg.MonitoringToken = strings.TrimSpace(getEnv("MONITORING_TOKEN", ""))
 	if len(cfg.MonitoringToken) < 16 {
 		return nil, fmt.Errorf("CRITICAL: MONITORING_TOKEN must be at least 16 characters")
+	}
+
+	if strings.TrimSpace(cfg.BackupSchedule) == "" {
+		return nil, fmt.Errorf("CRITICAL: BACKUP_SCHEDULE is required")
+	}
+	if cfg.BackupRetentionCount < 1 {
+		return nil, fmt.Errorf("CRITICAL: BACKUP_RETENTION_COUNT must be >= 1")
+	}
+	if strings.TrimSpace(cfg.BackupStoragePath) == "" {
+		return nil, fmt.Errorf("CRITICAL: BACKUP_STORAGE_PATH is required")
 	}
 
 	return cfg, nil

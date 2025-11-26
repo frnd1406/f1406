@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nas-ai/api/src/config"
 	"github.com/nas-ai/api/src/services"
 	"github.com/sirupsen/logrus"
 )
@@ -20,9 +21,9 @@ func BackupListHandler(backupSvc *services.BackupService, logger *logrus.Logger)
 	}
 }
 
-func BackupCreateHandler(backupSvc *services.BackupService, logger *logrus.Logger) gin.HandlerFunc {
+func BackupCreateHandler(backupSvc *services.BackupService, cfg *config.Config, logger *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		b, err := backupSvc.CreateBackup()
+		b, err := backupSvc.CreateBackup(cfg.BackupStoragePath)
 		if err != nil {
 			logger.WithError(err).Warn("backup: create failed")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create backup"})

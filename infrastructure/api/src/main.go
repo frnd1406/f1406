@@ -15,6 +15,7 @@ import (
 	"github.com/nas-ai/api/src/handlers"
 	"github.com/nas-ai/api/src/middleware"
 	"github.com/nas-ai/api/src/repository"
+	"github.com/nas-ai/api/src/scheduler"
 	"github.com/nas-ai/api/src/services"
 	"github.com/sirupsen/logrus"
 
@@ -113,10 +114,17 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to initialize storage service")
 	}
-	backupService, err := services.NewBackupService("/mnt/data", "/mnt/backups", logger)
+	backupService, err := services.NewBackupService("/mnt/data", cfg.BackupStoragePath, logger)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to initialize backup service")
 	}
+
+	// Start backup scheduler in background
+	go func() {
+		if err := scheduler.StartBackupScheduler(backupService, cfg); err != nil {
+			logger.WithError(err).Error("Failed to start backup scheduler")
+		}
+	}()
 
 	// Create Gin engine (without default middleware)
 	r := gin.New()
@@ -209,6 +217,16 @@ func main() {
 		v1.POST("/system/alerts/:id/resolve", handlers.SystemAlertResolveHandler(systemAlertsRepo, logger))
 	}
 
+	settingsV1 := v1.Group("/system")
+	settingsV1.Use(
+		middleware.AuthMiddleware(jwtService, redis, logger),
+		middleware.CSRFMiddleware(redis, logger),
+	)
+	{
+		settingsV1.GET("/settings", handlers.SystemSettingsHandler(cfg))
+		settingsV1.PUT("/settings/backup", handlers.UpdateBackupSettingsHandler(cfg, backupService, logger))
+	}
+
 	storageV1 := r.Group("/api/v1/storage")
 	storageV1.Use(
 		middleware.AuthMiddleware(jwtService, redis, logger),
@@ -228,7 +246,7 @@ func main() {
 	)
 	{
 		backupV1.GET("", handlers.BackupListHandler(backupService, logger))
-		backupV1.POST("", handlers.BackupCreateHandler(backupService, logger))
+		backupV1.POST("", handlers.BackupCreateHandler(backupService, cfg, logger))
 		backupV1.POST("/:id/restore", handlers.BackupRestoreHandler(backupService, logger))
 		backupV1.DELETE("/:id", handlers.BackupDeleteHandler(backupService, logger))
 	}

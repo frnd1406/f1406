@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,21 +29,40 @@ type BackupService struct {
 }
 
 func NewBackupService(dataPath, backupPath string, logger *logrus.Logger) (*BackupService, error) {
+	svc := &BackupService{
+		dataPath:    dataPath,
+		logger:      logger,
+		timeNowFunc: time.Now,
+	}
+
 	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		return nil, fmt.Errorf("ensure data path: %w", err)
 	}
-	if err := os.MkdirAll(backupPath, 0o755); err != nil {
-		return nil, fmt.Errorf("ensure backup path: %w", err)
+	if err := svc.SetBackupPath(backupPath); err != nil {
+		return nil, err
 	}
-	return &BackupService{
-		dataPath:    dataPath,
-		backupPath:  backupPath,
-		logger:      logger,
-		timeNowFunc: time.Now,
-	}, nil
+
+	return svc, nil
+}
+
+// SetBackupPath updates the destination directory for backups.
+func (s *BackupService) SetBackupPath(path string) error {
+	cleanPath := filepath.Clean(strings.TrimSpace(path))
+	if cleanPath == "" || cleanPath == "." || cleanPath == string(os.PathSeparator) {
+		return fmt.Errorf("invalid backup path")
+	}
+	if err := os.MkdirAll(cleanPath, 0o755); err != nil {
+		return fmt.Errorf("ensure backup path: %w", err)
+	}
+	s.backupPath = cleanPath
+	return nil
 }
 
 func (s *BackupService) ListBackups() ([]BackupInfo, error) {
+	if s.backupPath == "" {
+		return nil, fmt.Errorf("backup path not configured")
+	}
+
 	entries, err := os.ReadDir(s.backupPath)
 	if err != nil {
 		return nil, err
@@ -66,7 +86,17 @@ func (s *BackupService) ListBackups() ([]BackupInfo, error) {
 	return result, nil
 }
 
-func (s *BackupService) CreateBackup() (BackupInfo, error) {
+func (s *BackupService) CreateBackup(targetPath string) (BackupInfo, error) {
+	if targetPath != "" && targetPath != s.backupPath {
+		if err := s.SetBackupPath(targetPath); err != nil {
+			return BackupInfo{}, err
+		}
+	}
+
+	if s.backupPath == "" {
+		return BackupInfo{}, fmt.Errorf("backup path not configured")
+	}
+
 	ts := s.timeNowFunc().UTC().Format("20060102T150405Z")
 	name := fmt.Sprintf("backup-%s.tar.gz", ts)
 	dest := filepath.Join(s.backupPath, name)
@@ -135,6 +165,61 @@ func (s *BackupService) CreateBackup() (BackupInfo, error) {
 		Size:    info.Size(),
 		ModTime: info.ModTime(),
 	}, nil
+}
+
+// PruneBackups removes older backups while keeping the newest "retention" files.
+func (s *BackupService) PruneBackups(retention int) error {
+	if retention < 1 {
+		return fmt.Errorf("retention must be >= 1")
+	}
+
+	if s.backupPath == "" {
+		return fmt.Errorf("backup path not configured")
+	}
+
+	entries, err := os.ReadDir(s.backupPath)
+	if err != nil {
+		return err
+	}
+
+	type backupEntry struct {
+		name string
+		mod  time.Time
+	}
+
+	var backups []backupEntry
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		backups = append(backups, backupEntry{
+			name: e.Name(),
+			mod:  info.ModTime(),
+		})
+	}
+
+	if len(backups) <= retention {
+		return nil
+	}
+
+	sort.Slice(backups, func(i, j int) bool {
+		return backups[i].mod.After(backups[j].mod)
+	})
+
+	for _, old := range backups[retention:] {
+		target := filepath.Join(s.backupPath, filepath.Base(old.name))
+		if !s.insideBackupPath(target) {
+			continue
+		}
+		if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove old backup %s: %w", old.name, err)
+		}
+	}
+	return nil
 }
 
 func (s *BackupService) DeleteBackup(id string) error {
@@ -230,4 +315,9 @@ func (s *BackupService) insideBackupPath(path string) bool {
 		return false
 	}
 	return abs == backupAbs || strings.HasPrefix(abs, backupAbs+string(os.PathSeparator))
+}
+
+// Logger exposes the internal logger for callers that need to share the same logging pipeline.
+func (s *BackupService) Logger() *logrus.Logger {
+	return s.logger
 }

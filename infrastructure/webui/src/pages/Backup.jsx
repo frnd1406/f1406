@@ -1,6 +1,22 @@
 import { useEffect, useState } from "react";
 import { authHeaders } from "../utils/auth";
-import { Archive, Trash2, RefreshCw, Plus, HardDrive, AlertTriangle, Loader2 } from "lucide-react";
+import {
+  Archive,
+  Trash2,
+  RefreshCw,
+  Plus,
+  HardDrive,
+  AlertTriangle,
+  Loader2,
+  Settings,
+  Clock,
+  Save,
+  FolderOpen,
+  Calendar,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -24,6 +40,16 @@ export default function Backup() {
   const [busy, setBusy] = useState(false);
   const [processingId, setProcessingId] = useState(null);
 
+  // Settings State
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [backupSchedule, setBackupSchedule] = useState("03:00");
+  const [retentionDays, setRetentionDays] = useState(7);
+  const [backupPath, setBackupPath] = useState("/mnt/backups");
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
+
   const loadBackups = async () => {
     setLoading(true);
     setError("");
@@ -42,9 +68,65 @@ export default function Backup() {
     }
   };
 
+  const loadSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/system/settings`, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      // Setze die geladenen Einstellungen
+      if (data.backup_schedule) setBackupSchedule(data.backup_schedule);
+      if (data.backup_retention !== undefined) setRetentionDays(data.backup_retention);
+      if (data.backup_path) setBackupPath(data.backup_path);
+      if (data.auto_backup_enabled !== undefined) setAutoBackupEnabled(data.auto_backup_enabled);
+    } catch (err) {
+      console.error("Fehler beim Laden der Einstellungen:", err);
+      // Fehlermeldung nicht anzeigen, da Einstellungen optional sind
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadBackups();
+    loadSettings();
   }, []);
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/system/settings/backup`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          backup_schedule: backupSchedule,
+          backup_retention: retentionDays,
+          backup_path: backupPath,
+          auto_backup_enabled: autoBackupEnabled,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      setSuccessMessage(`✓ Einstellungen gespeichert! Nächstes Backup um ${backupSchedule} Uhr`);
+      setTimeout(() => setSuccessMessage(""), 5000);
+    } catch (err) {
+      setError(err.message || "Speichern fehlgeschlagen");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   const createBackup = async () => {
     setBusy(true);
@@ -118,8 +200,8 @@ export default function Backup() {
   return (
     <div className="space-y-6">
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Section with Auto-Backup Status */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
             <Archive className="text-blue-400" size={32} />
@@ -128,6 +210,16 @@ export default function Backup() {
           <p className="text-slate-400 mt-2 text-sm">
             Verwalten Sie System-Snapshots und stellen Sie Daten wieder her.
           </p>
+
+          {/* Auto-Backup Status Badge */}
+          {autoBackupEnabled && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <CheckCircle size={14} className="text-emerald-400" />
+              <span className="text-xs font-medium text-emerald-400">
+                Auto-Backup: AKTIV (Täglich um {backupSchedule} Uhr)
+              </span>
+            </div>
+          )}
         </div>
 
         <button
@@ -140,12 +232,160 @@ export default function Backup() {
         </button>
       </div>
 
+      {/* Success Message */}
+      {successMessage && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 animate-in fade-in duration-300">
+          <p className="text-emerald-400 text-sm font-medium">{successMessage}</p>
+        </div>
+      )}
+
       {/* Error Display */}
       {error && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
           <p className="text-rose-400 text-sm font-medium">{error}</p>
         </div>
       )}
+
+      {/* Settings Panel */}
+      <GlassCard>
+        <div className="p-6">
+          {/* Settings Header */}
+          <button
+            onClick={() => setSettingsExpanded(!settingsExpanded)}
+            className="w-full flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-violet-500/20 border border-violet-500/30">
+                <Settings size={20} className="text-violet-400" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-white font-semibold text-lg tracking-tight">
+                  Einstellungen & Zeitplan
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Konfigurieren Sie Ihre Backup-Strategie
+                </p>
+              </div>
+            </div>
+            <div className="text-slate-400 group-hover:text-white transition-colors">
+              {settingsExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+          </button>
+
+          {/* Settings Content */}
+          {settingsExpanded && (
+            <div className="mt-6 space-y-6 pt-6 border-t border-white/5">
+              {settingsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={24} className="text-blue-400 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Schedule Time */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                      <Clock size={16} className="text-blue-400" />
+                      Backup-Zeitplan
+                    </label>
+                    <input
+                      type="time"
+                      value={backupSchedule}
+                      onChange={(e) => setBackupSchedule(e.target.value)}
+                      className="w-full md:w-64 px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Tägliches automatisches Backup zur angegebenen Uhrzeit
+                    </p>
+                  </div>
+
+                  {/* Retention Period */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                      <Calendar size={16} className="text-blue-400" />
+                      Aufbewahrungszeitraum
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="1"
+                        max="30"
+                        value={retentionDays}
+                        onChange={(e) => setRetentionDays(parseInt(e.target.value))}
+                        className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                      <div className="px-4 py-2 bg-slate-800 border border-white/10 rounded-lg min-w-[80px] text-center">
+                        <span className="text-white font-mono font-medium">{retentionDays}</span>
+                        <span className="text-slate-400 text-xs ml-1">Tage</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Ältere Backups werden automatisch gelöscht. Behalte die letzten <span className="text-blue-400 font-medium">{retentionDays}</span> Snapshots.
+                    </p>
+                  </div>
+
+                  {/* Backup Path */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                      <FolderOpen size={16} className="text-blue-400" />
+                      Speicherort
+                    </label>
+                    <input
+                      type="text"
+                      value={backupPath}
+                      onChange={(e) => setBackupPath(e.target.value)}
+                      placeholder="/mnt/backups"
+                      className="w-full px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Pfad zum Backup-Verzeichnis auf dem NAS
+                    </p>
+                  </div>
+
+                  {/* Auto-Backup Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${autoBackupEnabled ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-slate-700 border-white/5'} border transition-colors`}>
+                        <CheckCircle size={18} className={autoBackupEnabled ? 'text-emerald-400' : 'text-slate-500'} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">Automatische Backups</p>
+                        <p className="text-xs text-slate-400">Aktiviert geplante tägliche Snapshots</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoBackupEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
+                    <button
+                      onClick={saveSettings}
+                      disabled={settingsSaving}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg font-medium transition-all border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+                    >
+                      {settingsSaving ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          <span>Speichere...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={18} />
+                          <span>Einstellungen speichern</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </GlassCard>
 
       {/* Backups List */}
       <GlassCard>
@@ -248,7 +488,7 @@ export default function Backup() {
       <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
         <AlertTriangle size={18} className="shrink-0 mt-0.5 text-blue-400" />
         <p className="text-sm text-slate-300">
-          Backups beinhalten alle Dateien aus dem <code className="px-1.5 py-0.5 bg-slate-800 rounded text-blue-400 font-mono text-xs">/mnt/data</code> Verzeichnis.
+          Backups beinhalten alle Dateien aus dem <code className="px-1.5 py-0.5 bg-slate-800 rounded text-blue-400 font-mono text-xs">{backupPath}</code> Verzeichnis.
           Die Wiederherstellung eines Snapshots überschreibt alle aktuellen Dateien unwiderruflich.
         </p>
       </div>

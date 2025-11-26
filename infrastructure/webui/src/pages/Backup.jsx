@@ -1,15 +1,28 @@
 import { useEffect, useState } from "react";
 import { authHeaders } from "../utils/auth";
+import { Archive, Trash2, RefreshCw, Plus, HardDrive, AlertTriangle, Loader2 } from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   `${window.location.protocol}//${window.location.hostname}:8080`;
+
+// Glass Card Component
+const GlassCard = ({ children, className = "" }) => (
+  <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl shadow-2xl ${className}`}>
+    {/* Internal "Shimmer" Reflection */}
+    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50"></div>
+    <div className="h-full flex flex-col">
+      {children}
+    </div>
+  </div>
+);
 
 export default function Backup() {
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
   const loadBackups = async () => {
     setLoading(true);
@@ -52,7 +65,9 @@ export default function Backup() {
   };
 
   const restoreBackup = async (id) => {
-    if (!window.confirm("Wiederherstellen überschreibt bestehende Daten. Fortfahren?")) return;
+    if (!window.confirm("⚠️ ACHTUNG: Dies überschreibt alle aktuellen Daten im NAS! Wollen Sie wirklich fortfahren?")) return;
+
+    setProcessingId(id);
     setBusy(true);
     setError("");
     try {
@@ -63,15 +78,18 @@ export default function Backup() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await loadBackups();
+      alert("✓ System erfolgreich wiederhergestellt!");
     } catch (err) {
       setError(err.message || "Restore fehlgeschlagen");
     } finally {
       setBusy(false);
+      setProcessingId(null);
     }
   };
 
   const deleteBackup = async (id) => {
-    if (!window.confirm("Backup wirklich löschen?")) return;
+    if (!window.confirm("Soll dieses Backup wirklich gelöscht werden?")) return;
+
     setBusy(true);
     setError("");
     try {
@@ -89,51 +107,151 @@ export default function Backup() {
     }
   };
 
+  const formatSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
-    <div style={{ padding: "1rem", fontFamily: "sans-serif" }}>
-      <h1>Backups</h1>
-      <div style={{ marginBottom: "1rem" }}>
-        <button onClick={createBackup} disabled={busy}>
-          {busy ? "Bitte warten..." : "Backup jetzt erstellen"}
+    <div className="space-y-6">
+
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+            <Archive className="text-blue-400" size={32} />
+            Backup & Recovery
+          </h1>
+          <p className="text-slate-400 mt-2 text-sm">
+            Verwalten Sie System-Snapshots und stellen Sie Daten wieder her.
+          </p>
+        </div>
+
+        <button
+          onClick={createBackup}
+          disabled={busy || loading}
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/30"
+        >
+          {busy ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+          <span>Neues Backup erstellen</span>
         </button>
       </div>
-      {error && <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>}
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <table border="1" cellPadding="6" cellSpacing="0" width="100%">
-          <thead>
-            <tr>
-              <th align="left">Name</th>
-              <th align="left">Größe</th>
-              <th align="left">Datum</th>
-              <th align="left">Aktionen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {backups.map((b) => (
-              <tr key={b.id}>
-                <td>{b.name || b.id}</td>
-                <td>{b.size} bytes</td>
-                <td>{new Date(b.modTime).toLocaleString()}</td>
-                <td>
-                  <button onClick={() => restoreBackup(b.id)} disabled={busy} style={{ marginRight: "0.5rem" }}>
-                    Wiederherstellen
-                  </button>
-                  <button onClick={() => deleteBackup(b.id)} disabled={busy}>
-                    Löschen
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {backups.length === 0 && (
-              <tr>
-                <td colSpan="4">Keine Backups vorhanden</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+
+      {/* Error Display */}
+      {error && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
+          <p className="text-rose-400 text-sm font-medium">{error}</p>
+        </div>
       )}
+
+      {/* Backups List */}
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-white font-semibold text-lg tracking-tight flex items-center gap-2">
+                <HardDrive size={20} className="text-blue-400" />
+                Verfügbare Backups
+              </h3>
+              <p className="text-slate-400 text-xs mt-1">{backups.length} Snapshot{backups.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 size={32} className="text-blue-400 animate-spin mb-3" />
+              <p className="text-slate-400 text-sm">Lade Backups...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-6 px-6">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-xs text-slate-500 border-b border-white/5">
+                    <th className="py-3 px-2 font-medium uppercase tracking-wider">Snapshot Name</th>
+                    <th className="py-3 px-2 font-medium uppercase tracking-wider">Datum</th>
+                    <th className="py-3 px-2 font-medium uppercase tracking-wider">Größe</th>
+                    <th className="py-3 px-2 font-medium uppercase tracking-wider text-right">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {backups.map((b) => (
+                    <tr
+                      key={b.id}
+                      className="group border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors"
+                    >
+                      <td className="py-4 px-2">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-slate-800 text-blue-400 group-hover:bg-blue-500/20 group-hover:border-blue-500/30 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] transition-all border border-white/5">
+                            <Archive size={16} />
+                          </div>
+                          <span className="font-medium text-white">
+                            {b.name || b.id}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-2 text-slate-400 font-mono text-xs">
+                        {new Date(b.modTime || b.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-4 px-2 text-slate-400 font-mono text-xs">
+                        {formatSize(b.size)}
+                      </td>
+                      <td className="py-4 px-2 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => restoreBackup(b.id)}
+                            disabled={busy}
+                            title="System wiederherstellen"
+                            className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {processingId === b.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <RefreshCw size={14} />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => deleteBackup(b.id)}
+                            disabled={busy}
+                            title="Backup löschen"
+                            className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {backups.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="py-16 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-500">
+                          <div className="p-4 bg-slate-800/50 rounded-full mb-4">
+                            <HardDrive size={48} className="opacity-30" />
+                          </div>
+                          <p className="text-lg font-medium text-slate-400">Keine Backups gefunden</p>
+                          <p className="text-sm mt-1 text-slate-500">Erstellen Sie Ihren ersten Snapshot oben rechts.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </GlassCard>
+
+      {/* Info Footer */}
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
+        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-blue-400" />
+        <p className="text-sm text-slate-300">
+          Backups beinhalten alle Dateien aus dem <code className="px-1.5 py-0.5 bg-slate-800 rounded text-blue-400 font-mono text-xs">/mnt/data</code> Verzeichnis.
+          Die Wiederherstellung eines Snapshots überschreibt alle aktuellen Dateien unwiderruflich.
+        </p>
+      </div>
     </div>
   );
 }

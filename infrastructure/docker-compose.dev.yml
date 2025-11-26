@@ -66,6 +66,7 @@ services:
       - "8080:8080"
     volumes:
       - nas_data:/mnt/data
+      - nas_backups:/mnt/backups
     networks:
       - nas-network
       - agent-network
@@ -138,6 +139,8 @@ volumes:
   redis_data:
     driver: local
   nas_data:
+    driver: local
+  nas_backups:
     driver: local
 
 networks:

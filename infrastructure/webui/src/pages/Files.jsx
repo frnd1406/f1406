@@ -21,6 +21,10 @@ export default function Files() {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const loadFiles = async (target = path) => {
+    if (!authHeaders().Authorization) {
+      setError("Bitte zuerst einloggen.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {

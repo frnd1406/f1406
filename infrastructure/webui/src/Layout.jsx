@@ -1,16 +1,23 @@
 import PropTypes from "prop-types";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { getAuth } from "./utils/auth";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { clearAuth, getAuth, isAuthenticated } from "./utils/auth";
 
 const navLinks = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/metrics", label: "Metrics" },
   { to: "/files", label: "Files" },
+  { to: "/backups", label: "Backups" },
 ];
 
 export default function Layout({ title = "NAS.AI" }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { accessToken } = getAuth();
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -45,6 +52,24 @@ export default function Layout({ title = "NAS.AI" }) {
             {!accessToken && (
               <li>
                 <Link to="/login">Login</Link>
+              </li>
+            )}
+            {isAuthenticated() && (
+              <li>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: 0,
+                    color: "#d00",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  Logout
+                </button>
               </li>
             )}
           </ul>

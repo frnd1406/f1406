@@ -113,6 +113,10 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to initialize storage service")
 	}
+	backupService, err := services.NewBackupService("/mnt/data", "/mnt/backups", logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize backup service")
+	}
 
 	// Create Gin engine (without default middleware)
 	r := gin.New()
@@ -215,6 +219,18 @@ func main() {
 		storageV1.POST("/upload", handlers.StorageUploadHandler(storageService, logger))
 		storageV1.GET("/download", handlers.StorageDownloadHandler(storageService, logger))
 		storageV1.DELETE("/delete", handlers.StorageDeleteHandler(storageService, logger))
+	}
+
+	backupV1 := r.Group("/api/v1/backups")
+	backupV1.Use(
+		middleware.AuthMiddleware(jwtService, redis, logger),
+		middleware.CSRFMiddleware(redis, logger),
+	)
+	{
+		backupV1.GET("", handlers.BackupListHandler(backupService, logger))
+		backupV1.POST("", handlers.BackupCreateHandler(backupService, logger))
+		backupV1.POST("/:id/restore", handlers.BackupRestoreHandler(backupService, logger))
+		backupV1.DELETE("/:id", handlers.BackupDeleteHandler(backupService, logger))
 	}
 
 	// Create HTTP server

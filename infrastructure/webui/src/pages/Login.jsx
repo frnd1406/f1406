@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { setAuth } from "../utils/auth";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -10,6 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,10 +30,13 @@ export default function Login() {
         throw new Error(data?.error?.message || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      localStorage.setItem("access_token", data.access_token || "");
-      localStorage.setItem("refresh_token", data.refresh_token || "");
-      localStorage.setItem("csrf_token", data.csrf_token || "");
-      setMessage("Login erfolgreich. Du kannst nun zu /metrics oder /files navigieren.");
+      setAuth({
+        accessToken: data.access_token || "",
+        refreshToken: data.refresh_token || "",
+        csrfToken: data.csrf_token || "",
+      });
+      setMessage("Login erfolgreich. Weiterleitung zum Dashboard ...");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err.message || "Login fehlgeschlagen");
     } finally {

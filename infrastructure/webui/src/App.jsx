@@ -3,6 +3,7 @@ import Layout from "./Layout";
 import Files from "./pages/Files";
 import Metrics from "./pages/Metrics";
 import Login from "./pages/Login";
+import Backup from "./pages/Backup";
 
 function Dashboard() {
   return <div>Dashboard placeholder</div>;
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="files" element={<Files />} />
           <Route path="metrics" element={<Metrics />} />
+          <Route path="backups" element={<Backup />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

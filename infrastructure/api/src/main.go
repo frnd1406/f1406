@@ -182,18 +182,19 @@ func main() {
 	// === AUTH ROUTES (public, but rate-limited) ===
 	authGroup := r.Group("/auth")
 	{
-		authGroup.POST("/register", handlers.RegisterHandler(userRepo, jwtService, passwordService, tokenService, emailService, redis, logger))
-		authGroup.POST("/login", handlers.LoginHandler(userRepo, jwtService, passwordService, redis, logger))
+		authLimiter := middleware.NewRateLimiter(&config.Config{RateLimitPerMin: 5})
+		authGroup.POST("/register",
+			authLimiter.Middleware(),
+			handlers.RegisterHandler(userRepo, jwtService, passwordService, tokenService, emailService, redis, logger),
+		)
+		authGroup.POST("/login",
+			authLimiter.Middleware(),
+			handlers.LoginHandler(userRepo, jwtService, passwordService, redis, logger),
+		)
 		authGroup.POST("/refresh", handlers.RefreshHandler(jwtService, redis, logger))
 		authGroup.POST("/logout",
 			middleware.AuthMiddleware(jwtService, redis, logger), // Require auth for logout
 			handlers.LogoutHandler(jwtService, redis, logger),
-		)
-
-		// CSRF token endpoint (requires auth)
-		authGroup.GET("/csrf",
-			middleware.AuthMiddleware(jwtService, redis, logger), // Require auth
-			handlers.GetCSRFToken(redis, logger),
 		)
 
 		// Email verification endpoints
@@ -220,6 +221,7 @@ func main() {
 	// === SYSTEM METRICS (API-Key geschützt, ohne JWT) ===
 	v1 := r.Group("/api/v1")
 	{
+		v1.GET("/auth/csrf", handlers.GetCSRFToken(redis, logger))
 		v1.POST("/system/metrics", handlers.SystemMetricsHandler(systemMetricsRepo, cfg.MonitoringToken, logger))
 		v1.GET("/system/metrics", handlers.SystemMetricsListHandler(systemMetricsRepo, logger))
 		v1.GET("/system/alerts", handlers.SystemAlertsListHandler(systemAlertsRepo, logger))

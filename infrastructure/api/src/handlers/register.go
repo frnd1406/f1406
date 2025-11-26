@@ -185,46 +185,37 @@ func RegisterHandler(
 			return
 		}
 
+		// Start new CSRF session for this user (auto-login after register)
+		sessionID, err := middleware.EnsureCSRFSession(c)
+		if err != nil {
+			logger.WithError(err).Error("Failed to create CSRF session")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+			return
+		}
+
 		// Generate JWT tokens
 		accessToken, err := jwtService.GenerateAccessToken(user.ID, user.Email)
 		if err != nil {
 			logger.WithError(err).Error("Failed to generate access token")
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": gin.H{
-					"code":       "internal_error",
-					"message":    "Failed to create user",
-					"request_id": requestID,
-				},
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
 			return
 		}
 
 		refreshToken, err := jwtService.GenerateRefreshToken(user.ID, user.Email)
 		if err != nil {
 			logger.WithError(err).Error("Failed to generate refresh token")
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": gin.H{
-					"code":       "internal_error",
-					"message":    "Failed to create user",
-					"request_id": requestID,
-				},
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
 			return
 		}
 
 		// Generate CSRF token
-		csrfToken, err := middleware.GenerateCSRFToken(redis, user.ID)
+		csrfToken, err := middleware.GenerateCSRFToken(redis, sessionID)
 		if err != nil {
 			logger.WithError(err).Error("Failed to generate CSRF token")
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": gin.H{
-					"code":       "internal_error",
-					"message":    "Failed to create user",
-					"request_id": requestID,
-				},
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
 			return
 		}
+		middleware.SetCSRFCookie(c, sessionID)
 
 		verificationToken := ""
 		// Generate verification token and send email (non-blocking)

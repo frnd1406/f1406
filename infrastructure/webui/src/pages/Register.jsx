@@ -1,19 +1,39 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { setAuth } from "../utils/auth";
-import { Mail, Lock, Loader2, LogIn, CloudLightning, ArrowRight, ShieldCheck } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  Loader2,
+  UserPlus,
+  CloudLightning,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   `${window.location.protocol}//${window.location.hostname}:8080`;
 
-export default function Login() {
+export default function Register() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
   const navigate = useNavigate();
+
+  // Password validation state
+  const [passwordStrength, setPasswordStrength] = useState({
+    isLongEnough: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
 
   // Fetch CSRF Token on mount
   useEffect(() => {
@@ -33,25 +53,53 @@ export default function Login() {
     fetchCsrf();
   }, []);
 
+  // Validate password strength
+  useEffect(() => {
+    setPasswordStrength({
+      isLongEnough: password.length >= 8,
+      hasNumber: /\d/.test(password),
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    });
+  }, [password]);
+
+  const isPasswordStrong =
+    passwordStrength.isLongEnough &&
+    passwordStrength.hasNumber &&
+    passwordStrength.hasSpecialChar;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError("Passwörter stimmen nicht überein");
+      setLoading(false);
+      return;
+    }
+
+    // Validate password strength
+    if (!isPasswordStrong) {
+      setError("Passwort erfüllt nicht die Sicherheitsanforderungen");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(csrfToken && { "X-CSRF-Token": csrfToken }),
         },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error?.message || "Login fehlgeschlagen");
+        throw new Error(data?.error?.message || "Registrierung fehlgeschlagen");
       }
 
       const data = await res.json();
@@ -64,7 +112,7 @@ export default function Login() {
       // Redirect to dashboard
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err.message || "Login fehlgeschlagen");
+      setError(err.message || "Registrierung fehlgeschlagen");
     } finally {
       setLoading(false);
     }
@@ -80,7 +128,7 @@ export default function Login() {
         <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[100px] opacity-60"></div>
       </div>
 
-      {/* Login Card */}
+      {/* Register Card */}
       <div className="relative z-10 w-full max-w-md">
 
         {/* Glass Card */}
@@ -91,14 +139,14 @@ export default function Login() {
 
             {/* Header */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 mb-4 shadow-lg shadow-blue-500/30">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 mb-4 shadow-lg shadow-emerald-500/30">
                 <CloudLightning size={32} className="text-white" />
               </div>
               <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
-                Willkommen zurück
+                Account erstellen
               </h1>
               <p className="text-slate-400 text-sm">
-                Melden Sie sich an, um auf Ihr System zuzugreifen
+                Werden Sie Teil des NAS.AI Systems
               </p>
             </div>
 
@@ -112,8 +160,28 @@ export default function Login() {
               </div>
             )}
 
-            {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Register Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* Name Input */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User size={18} className="text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    placeholder="Max Mustermann"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
 
               {/* Email Input */}
               <div>
@@ -153,37 +221,99 @@ export default function Login() {
                     className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
                   />
                 </div>
+
+                {/* Password Strength Indicators */}
+                {password && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      {passwordStrength.isLongEnough ? (
+                        <CheckCircle size={14} className="text-emerald-400" />
+                      ) : (
+                        <XCircle size={14} className="text-slate-500" />
+                      )}
+                      <span className={passwordStrength.isLongEnough ? "text-emerald-400" : "text-slate-500"}>
+                        Mindestens 8 Zeichen
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {passwordStrength.hasNumber ? (
+                        <CheckCircle size={14} className="text-emerald-400" />
+                      ) : (
+                        <XCircle size={14} className="text-slate-500" />
+                      )}
+                      <span className={passwordStrength.hasNumber ? "text-emerald-400" : "text-slate-500"}>
+                        Enthält mindestens eine Zahl
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {passwordStrength.hasSpecialChar ? (
+                        <CheckCircle size={14} className="text-emerald-400" />
+                      ) : (
+                        <XCircle size={14} className="text-slate-500" />
+                      )}
+                      <span className={passwordStrength.hasSpecialChar ? "text-emerald-400" : "text-slate-500"}>
+                        Enthält Sonderzeichen
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Passwort bestätigen
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={18} className="text-slate-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                  />
+                </div>
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="mt-2 text-xs text-rose-400 flex items-center gap-1">
+                    <XCircle size={12} />
+                    Passwörter stimmen nicht überein
+                  </p>
+                )}
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/30 mt-6"
+                disabled={loading || !isPasswordStrong || password !== confirmPassword}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-500/30 mt-6"
               >
                 {loading ? (
                   <>
                     <Loader2 size={20} className="animate-spin" />
-                    <span>Anmeldung läuft...</span>
+                    <span>Wird erstellt...</span>
                   </>
                 ) : (
                   <>
-                    <LogIn size={20} />
-                    <span>Anmelden</span>
+                    <UserPlus size={20} />
+                    <span>Account erstellen</span>
                   </>
                 )}
               </button>
             </form>
 
-            {/* Register Link */}
+            {/* Login Link */}
             <div className="mt-6 pt-6 border-t border-white/5">
               <p className="text-center text-sm text-slate-400">
-                Noch keinen Account?{" "}
+                Bereits registriert?{" "}
                 <Link
-                  to="/register"
+                  to="/login"
                   className="text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1 group transition-colors"
                 >
-                  Jetzt registrieren
+                  Jetzt anmelden
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
               </p>

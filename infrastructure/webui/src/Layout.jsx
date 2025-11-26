@@ -39,7 +39,7 @@ SidebarItem.propTypes = {
   onClick: PropTypes.func.isRequired,
 };
 
-export default function Layout({ title = "NAS AI" }) {
+export default function Layout({ title = "NAS AI v1.0.0" }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { accessToken } = getAuth();
@@ -57,6 +57,13 @@ export default function Layout({ title = "NAS AI" }) {
     clearAuth();
     navigate("/login", { replace: true });
   };
+
+  // Auth guard: redirect unauthenticated users to login
+  useEffect(() => {
+    if (!isAuthenticated() && location.pathname !== "/login") {
+      navigate("/login", { replace: true, state: { from: location.pathname } });
+    }
+  }, [location.pathname, navigate]);
 
   const navLinks = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },

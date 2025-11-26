@@ -3,6 +3,7 @@ import Layout from "./Layout";
 import Files from "./pages/Files";
 import Metrics from "./pages/Metrics";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Backup from "./pages/Backup";
 import Dashboard from "./pages/Dashboard";
 
@@ -11,6 +12,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />

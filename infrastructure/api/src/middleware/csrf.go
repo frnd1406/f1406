@@ -12,6 +12,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const csrfSessionCookie = "csrf_session"
+
 // CSRFMiddleware validates CSRF tokens for state-changing requests
 func CSRFMiddleware(redis *database.RedisClient, logger *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -38,10 +40,9 @@ func CSRFMiddleware(redis *database.RedisClient, logger *logrus.Logger) gin.Hand
 			return
 		}
 
-		// Get user_id from context (set by auth middleware)
-		userID, exists := c.Get("user_id")
-		if !exists {
-			logger.WithField("request_id", requestID).Error("CSRF check failed: no user_id in context")
+		sessionID, err := c.Cookie(csrfSessionCookie)
+		if err != nil || sessionID == "" {
+			logger.WithField("request_id", requestID).Warn("Missing CSRF session cookie")
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": gin.H{
 					"code":       "csrf_validation_failed",
@@ -53,15 +54,14 @@ func CSRFMiddleware(redis *database.RedisClient, logger *logrus.Logger) gin.Hand
 			return
 		}
 
-		// Validate CSRF token from Redis
 		ctx := context.Background()
-		key := "csrf:" + userID.(string)
+		key := "csrf:" + sessionID
 		storedToken, err := redis.Get(ctx, key).Result()
 
 		if err != nil || storedToken != csrfToken {
 			logger.WithFields(logrus.Fields{
 				"request_id": requestID,
-				"user_id":    userID,
+				"session":    sessionID,
 			}).Warn("Invalid CSRF token")
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": gin.H{
@@ -76,15 +76,15 @@ func CSRFMiddleware(redis *database.RedisClient, logger *logrus.Logger) gin.Hand
 
 		logger.WithFields(logrus.Fields{
 			"request_id": requestID,
-			"user_id":    userID,
+			"session":    sessionID,
 		}).Debug("CSRF token validated successfully")
 
 		c.Next()
 	}
 }
 
-// GenerateCSRFToken generates a new CSRF token for a user
-func GenerateCSRFToken(redis *database.RedisClient, userID string) (string, error) {
+// GenerateCSRFToken generates and stores a token for a session.
+func GenerateCSRFToken(redis *database.RedisClient, sessionID string) (string, error) {
 	// Generate 32-byte random token
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
@@ -95,10 +95,28 @@ func GenerateCSRFToken(redis *database.RedisClient, userID string) (string, erro
 
 	// Store in Redis with 24-hour expiry
 	ctx := context.Background()
-	key := "csrf:" + userID
+	key := "csrf:" + sessionID
 	if err := redis.Set(ctx, key, token, 24*time.Hour).Err(); err != nil {
 		return "", err
 	}
 
 	return token, nil
+}
+
+// SetCSRFCookie sets the session cookie for CSRF tokens.
+func SetCSRFCookie(c *gin.Context, sessionID string) {
+	c.SetCookie(csrfSessionCookie, sessionID, 24*3600, "/", "", true, true)
+}
+
+// EnsureCSRFSession ensures a session ID exists (cookie) and returns it.
+func EnsureCSRFSession(c *gin.Context) (string, error) {
+	if sessionID, err := c.Cookie(csrfSessionCookie); err == nil && sessionID != "" {
+		return sessionID, nil
+	}
+	// create new session id
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
 }

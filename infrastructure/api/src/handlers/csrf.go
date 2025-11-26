@@ -11,38 +11,37 @@ import (
 
 // GetCSRFToken returns a CSRF token for the authenticated user
 // @Summary Get CSRF Token
-// @Description Returns a CSRF token for state-changing requests. Requires authentication.
+// @Description Bootstrap CSRF cookie + token for SPA flows.
 // @Tags CSRF
-// @Security BearerAuth
 // @Produce json
 // @Success 200 {object} map[string]string "CSRF token generated successfully"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /auth/csrf [get]
 func GetCSRFToken(redis *database.RedisClient, logger *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetString("request_id")
 
-		// Get user_id from context (set by auth middleware)
-		userID, exists := c.Get("user_id")
-		if !exists {
-			logger.WithField("request_id", requestID).Error("No user_id in context")
-			c.JSON(http.StatusUnauthorized, gin.H{
+		sessionID, err := middleware.EnsureCSRFSession(c)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"request_id": requestID,
+				"error":      err.Error(),
+			}).Error("Failed to ensure CSRF session")
+			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": gin.H{
-					"code":       "unauthorized",
-					"message":    "Authentication required",
+					"code":       "csrf_generation_failed",
+					"message":    "Failed to generate CSRF token",
 					"request_id": requestID,
 				},
 			})
 			return
 		}
 
-		// Generate CSRF token
-		token, err := middleware.GenerateCSRFToken(redis, userID.(string))
+		token, err := middleware.GenerateCSRFToken(redis, sessionID)
 		if err != nil {
 			logger.WithFields(logrus.Fields{
 				"request_id": requestID,
-				"user_id":    userID,
+				"session":    sessionID,
 				"error":      err.Error(),
 			}).Error("Failed to generate CSRF token")
 
@@ -56,10 +55,7 @@ func GetCSRFToken(redis *database.RedisClient, logger *logrus.Logger) gin.Handle
 			return
 		}
 
-		logger.WithFields(logrus.Fields{
-			"request_id": requestID,
-			"user_id":    userID,
-		}).Info("CSRF token generated")
+		middleware.SetCSRFCookie(c, sessionID)
 
 		c.JSON(http.StatusOK, gin.H{
 			"csrf_token": token,

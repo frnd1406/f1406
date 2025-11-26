@@ -9,9 +9,9 @@ import {
   Cpu,
   MemoryStick,
   Clock,
-  TrendingUp,
   Archive,
   ArrowRight,
+  Server,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -27,37 +27,6 @@ const GlassCard = ({ children, className = "" }) => (
       {children}
     </div>
   </div>
-);
-
-// Metric Card Component
-const MetricCard = ({ icon: Icon, title, value, subtext, color = "blue", trend, loading }) => (
-  <GlassCard className={`hover:bg-${color}-500/5 transition-colors`}>
-    <div className="flex items-start justify-between">
-      <div className={`p-3 rounded-xl bg-${color}-500/20 border border-${color}-500/30`}>
-        <Icon size={24} className={`text-${color}-400`} />
-      </div>
-      {trend && (
-        <div className="flex items-center gap-1 text-emerald-400 text-xs font-medium">
-          <TrendingUp size={14} />
-          <span>{trend}</span>
-        </div>
-      )}
-    </div>
-    <div className="mt-4 flex-1">
-      <p className="text-slate-400 text-xs uppercase tracking-wider">{title}</p>
-      {loading ? (
-        <div className="mt-2 flex items-center gap-2">
-          <Loader2 size={16} className="animate-spin text-slate-400" />
-          <span className="text-slate-400 text-sm">Laden...</span>
-        </div>
-      ) : (
-        <>
-          <p className="text-2xl font-bold text-white mt-2">{value}</p>
-          {subtext && <p className="text-slate-500 text-xs mt-1">{subtext}</p>}
-        </>
-      )}
-    </div>
-  </GlassCard>
 );
 
 export default function Dashboard() {
@@ -164,7 +133,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Data Security Card */}
         <GlassCard className={`${isBackupActive ? 'hover:bg-emerald-500/5' : 'hover:bg-slate-500/5'} transition-colors`}>
@@ -214,45 +183,110 @@ export default function Dashboard() {
           </Link>
         </GlassCard>
 
-        {/* CPU Usage Card (Placeholder) */}
-        <MetricCard
-          icon={Cpu}
-          title="CPU Auslastung"
-          value="—"
-          subtext="Keine Daten verfügbar"
-          color="blue"
-          loading={false}
-        />
+        {/* System Resources Card */}
+        <GlassCard className="hover:bg-blue-500/5 transition-colors">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-500/20 border border-blue-500/30">
+                <Server size={24} className="text-blue-400" />
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase tracking-wider">System Ressourcen</p>
+                <p className="text-lg font-semibold text-white mt-0.5">Hardware Status</p>
+              </div>
+            </div>
+          </div>
 
-        {/* Memory Usage Card (Placeholder) */}
-        <MetricCard
-          icon={MemoryStick}
-          title="Arbeitsspeicher"
-          value="—"
-          subtext="Keine Daten verfügbar"
-          color="violet"
-          loading={false}
-        />
+          {/* CPU, RAM, Storage in einem Container */}
+          <div className="space-y-3 flex-1">
 
-        {/* Storage Card (Placeholder) */}
-        <MetricCard
-          icon={HardDrive}
-          title="Speicher"
-          value="—"
-          subtext="Keine Daten verfügbar"
-          color="cyan"
-          loading={false}
-        />
+            {/* CPU */}
+            <div className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/20">
+                    <Cpu size={18} className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium">CPU Auslastung</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Prozessor</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-mono text-lg font-bold">—</p>
+                  <p className="text-xs text-slate-500">Nicht verfügbar</p>
+                </div>
+              </div>
+            </div>
 
-        {/* System Health Card (Placeholder) */}
-        <MetricCard
-          icon={Activity}
-          title="System Status"
-          value="Online"
-          subtext="Alle Dienste laufen"
-          color="emerald"
-          loading={false}
-        />
+            {/* RAM */}
+            <div className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-violet-500/20">
+                    <MemoryStick size={18} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium">Arbeitsspeicher</p>
+                    <p className="text-xs text-slate-500 mt-0.5">RAM</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-mono text-lg font-bold">—</p>
+                  <p className="text-xs text-slate-500">Nicht verfügbar</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Storage */}
+            <div className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/20">
+                    <HardDrive size={18} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium">Speicher</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Disk Space</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-mono text-lg font-bold">—</p>
+                  <p className="text-xs text-slate-500">Nicht verfügbar</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </GlassCard>
+
+      </div>
+
+      {/* Second Row - System Health & Snapshots */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* System Health Card */}
+        <GlassCard className="hover:bg-emerald-500/5 transition-colors">
+          <div className="flex items-start justify-between">
+            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+              <Activity size={24} className="text-emerald-400" />
+            </div>
+          </div>
+
+          <div className="mt-4 flex-1">
+            <p className="text-slate-400 text-xs uppercase tracking-wider">System Status</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-2">Online</p>
+            <p className="text-slate-500 text-xs mt-1">Alle Dienste laufen</p>
+          </div>
+
+          <Link
+            to="/metrics"
+            className="mt-4 flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
+          >
+            <span className="text-xs text-slate-400 group-hover:text-white">Metriken anzeigen</span>
+            <ArrowRight size={14} className="text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
+          </Link>
+        </GlassCard>
 
         {/* Backup Count Card */}
         <GlassCard className="hover:bg-blue-500/5 transition-colors">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { authHeaders } from "../utils/auth";
-import { AlertTriangle, CheckCircle, AlertCircle, Activity, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, AlertCircle, Activity, Loader2, Cpu, HardDrive, Gauge } from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -22,6 +22,8 @@ export default function Metrics() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [metrics, setMetrics] = useState([]);
+  const [metricsError, setMetricsError] = useState("");
 
   const banner = useMemo(() => {
     const hasCritical = alerts.some((a) => a.severity === "CRITICAL");
@@ -77,9 +79,30 @@ export default function Metrics() {
     }
   };
 
+  const fetchMetrics = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/system/metrics?limit=5`, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setMetrics(data.items || []);
+      setMetricsError("");
+    } catch (err) {
+      setMetricsError(err.message || "Failed to load metrics");
+    }
+  };
+
+  const fetchAll = async () => {
+    await Promise.all([fetchAlerts(), fetchMetrics()]);
+  };
+
   useEffect(() => {
-    fetchAlerts();
-    const id = setInterval(fetchAlerts, POLL_MS);
+    fetchAll();
+    const id = setInterval(fetchAll, POLL_MS);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -111,6 +134,14 @@ export default function Metrics() {
   };
 
   const BannerIcon = banner.icon;
+  const latest = metrics[0];
+  const statBlocks = latest
+    ? [
+        { label: "CPU Usage", value: latest.cpu_usage, icon: Cpu, color: "text-blue-400", bar: "bg-blue-500" },
+        { label: "RAM Usage", value: latest.ram_usage, icon: Gauge, color: "text-emerald-400", bar: "bg-emerald-500" },
+        { label: "Disk Usage", value: latest.disk_usage, icon: HardDrive, color: "text-amber-400", bar: "bg-amber-500" },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
@@ -142,6 +173,53 @@ export default function Metrics() {
         {error && (
           <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
             <p className="text-rose-400 text-sm font-medium">Error: {error}</p>
+          </div>
+        )}
+      </GlassCard>
+
+      {/* Live Metrics */}
+      <GlassCard>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-white font-semibold text-lg tracking-tight flex items-center gap-2">
+              <Gauge size={20} className="text-blue-400" />
+              Live System Metrics
+            </h3>
+            <p className="text-slate-400 text-xs mt-1">CPU / RAM / Disk (latest sample)</p>
+          </div>
+          {metricsError && (
+            <span className="text-rose-400 text-xs font-medium">Error: {metricsError}</span>
+          )}
+        </div>
+
+        {latest ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {statBlocks.map((stat) => {
+              const Icon = stat.icon;
+              const pct = Math.min(100, Math.max(0, Math.round(stat.value)));
+              return (
+                <div key={stat.label} className="p-4 rounded-xl bg-white/5 border border-white/10 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Icon size={18} className={stat.color} />
+                      <span className="text-sm font-semibold text-white">{stat.label}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-white">{pct}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className={`${stat.bar} h-full transition-all duration-500`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">Sampled at {new Date(latest.created_at || latest.createdAt).toLocaleTimeString()}</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm">
+            {metricsError ? metricsError : "No metrics received yet. Waiting for agents..."}
           </div>
         )}
       </GlassCard>

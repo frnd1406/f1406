@@ -16,7 +16,7 @@ import {
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  `${window.location.protocol}//${window.location.hostname}:8080`;
+  window.location.origin;
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -39,7 +39,7 @@ export default function Register() {
   useEffect(() => {
     const fetchCsrf = async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/csrf`, {
+        const res = await fetch(`${API_BASE}/api/v1/auth/csrf`, {
           credentials: "include",
         });
         if (res.ok) {
@@ -94,7 +94,7 @@ export default function Register() {
           ...(csrfToken && { "X-CSRF-Token": csrfToken }),
         },
         credentials: "include",
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ username: name, email, password }),
       });
 
       if (!res.ok) {

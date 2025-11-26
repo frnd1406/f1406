@@ -4,7 +4,7 @@ import { FolderOpen, File, Upload, Download, Trash2, ArrowUp, Loader2 } from "lu
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  `${window.location.protocol}//${window.location.hostname}:8080`;
+  window.location.origin;
 
 function joinPath(base, name) {
   if (!base || base === "/") {

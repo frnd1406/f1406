@@ -5,7 +5,7 @@ import { Mail, Lock, Loader2, LogIn, CloudLightning, ArrowRight, ShieldCheck } f
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  `${window.location.protocol}//${window.location.hostname}:8080`;
+  window.location.origin;
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -19,7 +19,7 @@ export default function Login() {
   useEffect(() => {
     const fetchCsrf = async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/csrf`, {
+        const res = await fetch(`${API_BASE}/api/v1/auth/csrf`, {
           credentials: "include",
         });
         if (res.ok) {

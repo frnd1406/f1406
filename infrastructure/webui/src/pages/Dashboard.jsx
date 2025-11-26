@@ -17,7 +17,7 @@ import { Link } from "react-router-dom";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  `${window.location.protocol}//${window.location.hostname}:8080`;
+  window.location.origin;
 
 // Glass Card Component
 const GlassCard = ({ children, className = "" }) => (
@@ -34,6 +34,8 @@ export default function Dashboard() {
   const [backupStatus, setBackupStatus] = useState(null);
   const [lastBackup, setLastBackup] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [latestMetric, setLatestMetric] = useState(null);
+  const [metricsError, setMetricsError] = useState("");
 
   // Load Backup Info
   const loadBackupStatus = async () => {
@@ -78,6 +80,31 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Load latest system metrics
+  const loadLatestMetric = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/system/metrics?limit=1`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const items = data.items || [];
+      setLatestMetric(items[0] || null);
+      setMetricsError("");
+    } catch (err) {
+      setMetricsError(err.message || "Metrics nicht verfügbar");
+      setLatestMetric(null);
+    }
+  };
+
+  useEffect(() => {
+    loadLatestMetric();
+    const id = setInterval(loadLatestMetric, 15000);
+    return () => clearInterval(id);
+  }, []);
+
   // Calculate next backup time
   const getNextBackupTime = () => {
     if (!settings?.backup_schedule) return "Nicht geplant";
@@ -118,6 +145,11 @@ export default function Dashboard() {
   };
 
   const isBackupActive = settings?.auto_backup_enabled ?? true;
+  const formatPct = (v) => (typeof v === "number" ? `${Math.round(v)}%` : "—");
+  const metricTime =
+    latestMetric && (latestMetric.created_at || latestMetric.createdAt)
+      ? new Date(latestMetric.created_at || latestMetric.createdAt).toLocaleTimeString()
+      : null;
 
   return (
     <div className="space-y-6">
@@ -213,8 +245,10 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-mono text-lg font-bold">—</p>
-                  <p className="text-xs text-slate-500">Nicht verfügbar</p>
+                  <p className="text-white font-mono text-lg font-bold">{formatPct(latestMetric?.cpu_usage)}</p>
+                  <p className="text-xs text-slate-500">
+                    {metricTime ? `Zuletzt: ${metricTime}` : metricsError || "Wartet auf Daten"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -232,8 +266,10 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-mono text-lg font-bold">—</p>
-                  <p className="text-xs text-slate-500">Nicht verfügbar</p>
+                  <p className="text-white font-mono text-lg font-bold">{formatPct(latestMetric?.ram_usage)}</p>
+                  <p className="text-xs text-slate-500">
+                    {metricTime ? `Zuletzt: ${metricTime}` : metricsError || "Wartet auf Daten"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -251,8 +287,10 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-mono text-lg font-bold">—</p>
-                  <p className="text-xs text-slate-500">Nicht verfügbar</p>
+                  <p className="text-white font-mono text-lg font-bold">{formatPct(latestMetric?.disk_usage)}</p>
+                  <p className="text-xs text-slate-500">
+                    {metricTime ? `Zuletzt: ${metricTime}` : metricsError || "Wartet auf Daten"}
+                  </p>
                 </div>
               </div>
             </div>

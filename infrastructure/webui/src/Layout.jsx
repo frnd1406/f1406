@@ -1,83 +1,208 @@
+import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearAuth, getAuth, isAuthenticated } from "./utils/auth";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Database,
+  Settings,
+  LogOut,
+  Search,
+  Bell,
+  CloudLightning,
+  Menu,
+  X,
+  Activity
+} from "lucide-react";
 
-const navLinks = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/metrics", label: "Metrics" },
-  { to: "/files", label: "Files" },
-  { to: "/backups", label: "Backups" },
-];
+// SidebarItem Component for reusable navigation items
+const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all duration-300 group
+      ${active
+        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+        : 'text-slate-400 hover:bg-white/5 hover:text-white hover:pl-4'
+      }`}
+  >
+    <Icon size={20} strokeWidth={1.5} />
+    <span className="font-medium text-sm tracking-wide">{label}</span>
+    {active && <div className="ml-auto w-1 h-1 bg-blue-400 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />}
+  </button>
+);
 
-export default function Layout({ title = "NAS.AI" }) {
+SidebarItem.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  label: PropTypes.string.isRequired,
+  active: PropTypes.bool.isRequired,
+  onClick: PropTypes.func.isRequired,
+};
+
+export default function Layout({ title = "NAS AI" }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { accessToken } = getAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Scroll effect for header
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleLogout = () => {
     clearAuth();
     navigate("/login", { replace: true });
   };
 
+  const navLinks = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/metrics", label: "Metrics", icon: Activity },
+    { to: "/files", label: "Files & Storage", icon: FolderOpen },
+    { to: "/backups", label: "Backups", icon: Database },
+  ];
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
-      <aside
-        style={{
-          width: "220px",
-          borderRight: "1px solid #ddd",
-          padding: "1rem",
-          background: "#f8f9fb",
-        }}
-      >
-        <div style={{ fontWeight: 700, marginBottom: "1rem" }}>{title}</div>
-        <nav>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
+    <div className="min-h-screen bg-[#0a0a0c] text-slate-200 font-sans selection:bg-blue-500/30 overflow-x-hidden relative">
+
+      {/* Background Effects (Liquid/Glow) */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Blue Blob */}
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] animate-pulse-glow"></div>
+        {/* Violet Blob */}
+        <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[130px]"></div>
+        {/* Cyan Accent middle */}
+        <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[100px] opacity-60"></div>
+      </div>
+
+      <div className="relative z-10 flex h-screen overflow-hidden">
+
+        {/* Sidebar (Desktop & Mobile) */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out
+          lg:relative lg:translate-x-0
+          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          bg-[#0a0a0c]/80 backdrop-blur-2xl border-r border-white/5 flex flex-col
+        `}>
+          {/* Logo Area */}
+          <div className="p-8 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <CloudLightning size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-wide">{title}</h1>
+              <p className="text-[10px] text-blue-400 font-medium tracking-widest uppercase">System Online</p>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+            <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Main Menu</p>
             {navLinks.map((link) => {
               const active = location.pathname.startsWith(link.to);
               return (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    style={{
-                      textDecoration: "none",
-                      color: active ? "#0b5ed7" : "#111",
-                      fontWeight: active ? 700 : 500,
-                    }}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
+                <Link key={link.to} to={link.to} className="block">
+                  <SidebarItem
+                    icon={link.icon}
+                    label={link.label}
+                    active={active}
+                    onClick={() => setMobileMenuOpen(false)}
+                  />
+                </Link>
               );
             })}
-            {!accessToken && (
-              <li>
-                <Link to="/login">Login</Link>
-              </li>
-            )}
+
+            <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-8 mb-2">Preferences</p>
+            <SidebarItem
+              icon={Settings}
+              label="Settings"
+              active={location.pathname === '/settings'}
+              onClick={() => {
+                navigate('/settings');
+                setMobileMenuOpen(false);
+              }}
+            />
+          </nav>
+
+          {/* User & Logout */}
+          <div className="p-4 border-t border-white/5 bg-gradient-to-t from-black/40 to-transparent">
             {isAuthenticated() && (
-              <li>
+              <>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-white/10">
+                    <div className="w-full h-full bg-gradient-to-tr from-slate-600 to-slate-500 flex items-center justify-center text-xs text-white font-bold">
+                      {accessToken ? 'AU' : 'U'}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">User</p>
+                    <p className="text-xs text-slate-400 truncate">Admin Access</p>
+                  </div>
+                </div>
                 <button
-                  type="button"
                   onClick={handleLogout}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    padding: 0,
-                    color: "#d00",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
+                  className="flex items-center gap-3 w-full p-3 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors group"
                 >
-                  Logout
+                  <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
+                  <span className="font-medium text-sm">Logout</span>
                 </button>
-              </li>
+              </>
             )}
-          </ul>
-        </nav>
-      </aside>
-      <main style={{ flex: 1, padding: "1.5rem" }}>
-        <Outlet />
-      </main>
+            {!accessToken && (
+              <Link to="/login" className="flex items-center gap-3 w-full p-3 rounded-xl text-blue-400 hover:bg-blue-500/10 transition-colors">
+                <span className="font-medium text-sm">Login</span>
+              </Link>
+            )}
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="flex-1 h-full overflow-y-auto relative scroll-smooth">
+          {/* Header */}
+          <header className={`sticky top-0 z-40 px-6 py-4 flex items-center justify-between transition-all duration-300 ${scrolled ? 'bg-[#0a0a0c]/80 backdrop-blur-md border-b border-white/5' : ''}`}>
+            <div className="flex items-center gap-4 lg:hidden">
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-400 hover:text-white">
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+              <span className="text-lg font-bold text-white">{title}</span>
+            </div>
+
+            <div className="hidden lg:block">
+              <h2 className="text-2xl font-semibold text-white">
+                {location.pathname === '/dashboard' && 'Dashboard Overview'}
+                {location.pathname === '/metrics' && 'System Metrics'}
+                {location.pathname === '/files' && 'Files & Storage'}
+                {location.pathname === '/backups' && 'Backups'}
+                {location.pathname === '/settings' && 'Settings'}
+              </h2>
+              <p className="text-slate-400 text-sm">Welcome back to your neural hub.</p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-2 w-64 focus-within:bg-white/10 focus-within:border-blue-500/50 transition-all">
+                <Search size={18} className="text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search files or commands..."
+                  className="bg-transparent border-none outline-none text-sm text-white ml-2 w-full placeholder:text-slate-500"
+                />
+              </div>
+              <button className="relative p-2.5 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-colors">
+                <Bell size={20} />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+              </button>
+            </div>
+          </header>
+
+          {/* Page Content */}
+          <div className="p-6 lg:p-10 max-w-[1600px] mx-auto">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

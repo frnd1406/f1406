@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nas-ai/api/src/config"
+	"github.com/nas-ai/api/src/repository"
 	"github.com/nas-ai/api/src/scheduler"
 	"github.com/nas-ai/api/src/services"
 	"github.com/robfig/cron/v3"
@@ -32,7 +34,7 @@ func SystemSettingsHandler(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
-func UpdateBackupSettingsHandler(cfg *config.Config, backupSvc *services.BackupService, logger *logrus.Logger) gin.HandlerFunc {
+func UpdateBackupSettingsHandler(cfg *config.Config, backupSvc *services.BackupService, settingsRepo *repository.SystemSettingsRepository, logger *logrus.Logger) gin.HandlerFunc {
 	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 
 	return func(c *gin.Context) {
@@ -67,6 +69,16 @@ func UpdateBackupSettingsHandler(cfg *config.Config, backupSvc *services.BackupS
 		cfg.BackupSchedule = req.Schedule
 		cfg.BackupRetentionCount = req.Retention
 		cfg.BackupStoragePath = req.Path
+
+		if err := settingsRepo.UpsertMany(c.Request.Context(), map[string]string{
+			repository.SystemSettingBackupSchedule:  cfg.BackupSchedule,
+			repository.SystemSettingBackupRetention: fmt.Sprintf("%d", cfg.BackupRetentionCount),
+			repository.SystemSettingBackupPath:      cfg.BackupStoragePath,
+		}); err != nil {
+			logger.WithError(err).Error("backup settings: failed to persist settings")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist settings"})
+			return
+		}
 
 		if err := scheduler.RestartScheduler(); err != nil {
 			logger.WithError(err).Error("backup settings: failed to restart scheduler")

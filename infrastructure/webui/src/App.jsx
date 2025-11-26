@@ -4,10 +4,7 @@ import Files from "./pages/Files";
 import Metrics from "./pages/Metrics";
 import Login from "./pages/Login";
 import Backup from "./pages/Backup";
-
-function Dashboard() {
-  return <div>Dashboard placeholder</div>;
-}
+import Dashboard from "./pages/Dashboard";
 
 export default function App() {
   return (

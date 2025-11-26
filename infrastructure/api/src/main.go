@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/nas-ai/api/src/repository"
 	"github.com/nas-ai/api/src/scheduler"
 	"github.com/nas-ai/api/src/services"
+	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 
 	_ "github.com/nas-ai/api/docs" // swagger docs
@@ -96,8 +100,14 @@ func main() {
 	defer redis.Close()
 
 	// Initialize repositories
-	userRepo := repository.NewUserRepository(db, logger)
 	dbx := sqlx.NewDb(db.DB, "postgres")
+	settingsRepo := repository.NewSystemSettingsRepository(dbx, logger)
+	if err := settingsRepo.EnsureTable(context.Background()); err != nil {
+		logger.WithError(err).Fatal("Failed to ensure system settings table")
+	}
+	applyPersistedBackupSettings(context.Background(), settingsRepo, cfg, logger)
+
+	userRepo := repository.NewUserRepository(db, logger)
 	systemMetricsRepo := repository.NewSystemMetricsRepository(dbx, logger)
 	systemAlertsRepo := repository.NewSystemAlertsRepository(dbx, logger)
 	monitoringRepo := repository.NewMonitoringRepository(db, logger)
@@ -224,7 +234,7 @@ func main() {
 	)
 	{
 		settingsV1.GET("/settings", handlers.SystemSettingsHandler(cfg))
-		settingsV1.PUT("/settings/backup", handlers.UpdateBackupSettingsHandler(cfg, backupService, logger))
+		settingsV1.PUT("/settings/backup", handlers.UpdateBackupSettingsHandler(cfg, backupService, settingsRepo, logger))
 	}
 
 	storageV1 := r.Group("/api/v1/storage")
@@ -287,4 +297,42 @@ func main() {
 	}
 
 	logger.Info("Server exited")
+}
+
+func applyPersistedBackupSettings(ctx context.Context, settingsRepo *repository.SystemSettingsRepository, cfg *config.Config, logger *logrus.Logger) {
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+	settings, err := settingsRepo.GetAll(ctx)
+	if err != nil {
+		logger.WithError(err).Warn("Failed to load persisted settings; continuing with defaults")
+		return
+	}
+
+	if schedule, ok := settings[repository.SystemSettingBackupSchedule]; ok {
+		s := strings.TrimSpace(schedule)
+		if s != "" {
+			if _, err := parser.Parse(s); err != nil {
+				logger.WithError(err).Warn("Ignoring invalid persisted backup schedule")
+			} else {
+				cfg.BackupSchedule = s
+			}
+		}
+	}
+
+	if retentionStr, ok := settings[repository.SystemSettingBackupRetention]; ok {
+		if n, err := strconv.Atoi(retentionStr); err == nil && n > 0 {
+			cfg.BackupRetentionCount = n
+		} else if err != nil {
+			logger.WithError(err).Warn("Ignoring invalid persisted backup retention")
+		}
+	}
+
+	if path, ok := settings[repository.SystemSettingBackupPath]; ok {
+		p := filepath.Clean(strings.TrimSpace(path))
+		if p != "" && p != "." && p != string(os.PathSeparator) {
+			cfg.BackupStoragePath = p
+		} else {
+			logger.Warn("Ignoring invalid persisted backup path")
+		}
+	}
 }

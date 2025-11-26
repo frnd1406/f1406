@@ -12,7 +12,7 @@ Für Production muss die API mit HTTPS laufen. Es gibt mehrere Ansätze:
 # /etc/nginx/sites-available/nas-api
 server {
     listen 80;
-    server_name api.felix-freund.com;
+    server_name api.your-domain.com;
 
     # Redirect HTTP to HTTPS
     return 301 https://$server_name$request_uri;
@@ -20,11 +20,11 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name api.felix-freund.com;
+    server_name api.your-domain.com;
 
     # SSL Certificate (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/api.felix-freund.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.felix-freund.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.your-domain.com/privkey.pem;
 
     # SSL Configuration
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -73,7 +73,7 @@ sudo apt-get update
 sudo apt-get install certbot python3-certbot-nginx
 
 # Get Certificate
-sudo certbot --nginx -d api.felix-freund.com
+sudo certbot --nginx -d api.your-domain.com
 
 # Auto-renewal (certbot creates cron job automatically)
 sudo certbot renew --dry-run
@@ -95,8 +95,8 @@ Environment="PORT=8080"
 Environment="JWT_SECRET=your-secret-from-env"
 Environment="DATABASE_URL=postgres://user:pass@localhost/nas"
 Environment="REDIS_URL=localhost:6379"
-Environment="CORS_ORIGINS=https://felix-freund.com"
-Environment="FRONTEND_URL=https://felix-freund.com"
+Environment="CORS_ORIGINS=https://your-domain.com"
+Environment="FRONTEND_URL=https://your-domain.com"
 ExecStart=/opt/nas-api/bin/api
 Restart=always
 RestartSec=10
@@ -263,7 +263,7 @@ tunnel: nas-api
 credentials-file: /home/user/.cloudflared/<TUNNEL-ID>.json
 
 ingress:
-  - hostname: api.felix-freund.com
+  - hostname: api.your-domain.com
     service: http://localhost:8080
   - service: http_status:404
 EOF
@@ -301,7 +301,7 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=admin@felix-freund.com"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@your-domain.com"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
@@ -314,7 +314,7 @@ services:
     build: .
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(\`api.felix-freund.com\`)"
+      - "traefik.http.routers.api.rule=Host(\`api.your-domain.com\`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
@@ -346,7 +346,7 @@ export PORT=8080
 sudo apt-get install nginx
 
 # 2. Get SSL Certificate
-sudo certbot --nginx -d api.felix-freund.com
+sudo certbot --nginx -d api.your-domain.com
 
 # 3. Configure Nginx (siehe oben)
 sudo nano /etc/nginx/sites-available/nas-api
@@ -356,7 +356,7 @@ sudo systemctl restart nginx
 
 # 4. Run API on localhost:8080
 export PORT=8080
-export CORS_ORIGINS=https://felix-freund.com
+export CORS_ORIGINS=https://your-domain.com
 ./bin/api
 
 # 5. Setup Systemd service (siehe oben)

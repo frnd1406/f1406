@@ -125,7 +125,7 @@ Status & Reporting Policy:
    - **Unklarheiten/Halluzinationen:** Sobald ein Agent den Kontext nicht mehr versteht, widersprüchliche Informationen findet oder „Halluzinationen“ vermutet, wird der Task sofort pausiert und ein Request `clarification_needed` an den Orchestrator gesendet. Der Agent darf nicht raten. Stattdessen:
      1. Log-Eintrag in `status/<agent>/<NNN>_<date>_clarification.md` mit präziser Frage.
      2. Orchestrator weist Task neu zu oder liefert Kontext (z. B. Referenz-Doc).
-     3. Orchestrator informiert den Owner (`freun`) automatisch über den offenen Punkt, sammelt die Klarstellung und verteilt sie an alle betroffenen Agenten.
+     3. Orchestrator informiert den Owner (`user`) automatisch über den offenen Punkt, sammelt die Klarstellung und verteilt sie an alle betroffenen Agenten.
      4. Erst nach schriftlicher Bestätigung wird weitergearbeitet.
 ```
 ## 5. Filesystem Layout (ASCII Map)

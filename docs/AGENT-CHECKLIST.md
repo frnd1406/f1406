@@ -17,7 +17,7 @@ Diese Checkliste MUSS von jedem Agenten vor Beginn JEDER neuen Aufgabe durchgear
 ### 1. Kern-Dokumente lesen
 
 - [ ] **NAS_AI_SYSTEM.md** gelesen
-  - Pfad: `/home/freun/Agent/NAS_AI_SYSTEM.md`
+  - Pfad: `/home/user/Agent/NAS_AI_SYSTEM.md`
   - Fokus: Grundlegendes Verständnis der Systemarchitektur und Governance.
 
 - [ ] **AGENT_MATRIX.md** gelesen

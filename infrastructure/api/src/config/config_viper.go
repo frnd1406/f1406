@@ -149,8 +149,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("redis_port", "6380")
 
 	// Email defaults
-	v.SetDefault("email_from", "NAS.AI <noreply@felix-freund.com>")
-	v.SetDefault("frontend_url", "https://felix-freund.com")
+	v.SetDefault("email_from", "NAS.AI <noreply@your-domain.com>")
+	v.SetDefault("frontend_url", "https://your-domain.com")
 	v.SetDefault("cloudflare_r2_bucket", "nas-ai-storage")
 
 	// Backup defaults

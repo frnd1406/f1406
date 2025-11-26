@@ -374,13 +374,13 @@ apiRouter.Handle("/files", apiChain.Then(handlers.UploadFile())).Methods("POST")
 ### Prerequisites
 - Go 1.22+ installed
 - Docker & Docker Compose (for DB, Redis)
-- Access to `/home/freun/Agent/docs/development/DEV_GUIDE.md`
+- Access to `/home/user/Agent/docs/development/DEV_GUIDE.md`
 
 ### Quick Start
 
 ```bash
 # 1. Navigate to API directory
-cd /home/freun/Agent/infrastructure/api
+cd /home/user/Agent/infrastructure/api
 
 # 2. Initialize Go module
 go mod init github.com/nas-ai/api
@@ -582,7 +582,7 @@ Full API specification: `docs/api-spec.yaml` (to be created in Epic 4)
 
 ## STATUS TRACKING
 
-**Statuslogs:** `/home/freun/Agent/status/APIAgent/phase1/`
+**Statuslogs:** `/home/user/Agent/status/APIAgent/phase1/`
 
 **Format:** `NNN_YYYYMMDD_task-description.md`
 
@@ -646,11 +646,11 @@ Before marking ANY Epic as complete, verify:
 
 ## REFERENCES
 
-- **System Architecture:** `/home/freun/Agent/NAS_AI_SYSTEM.md`
-- **Security Handbook:** `/home/freun/Agent/docs/security/SECURITY_HANDBOOK.pdf`
-- **CVE Checklist:** `/home/freun/Agent/CVE_CHECKLIST.md`
-- **Agent Matrix:** `/home/freun/Agent/docs/planning/AGENT_MATRIX.md`
-- **Dev Guide:** `/home/freun/Agent/docs/development/DEV_GUIDE.md`
+- **System Architecture:** `/home/user/Agent/NAS_AI_SYSTEM.md`
+- **Security Handbook:** `/home/user/Agent/docs/security/SECURITY_HANDBOOK.pdf`
+- **CVE Checklist:** `/home/user/Agent/CVE_CHECKLIST.md`
+- **Agent Matrix:** `/home/user/Agent/docs/planning/AGENT_MATRIX.md`
+- **Dev Guide:** `/home/user/Agent/docs/development/DEV_GUIDE.md`
 
 ---
 

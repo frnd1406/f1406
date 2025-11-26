@@ -40,7 +40,7 @@
 
 ### DNS Configuration
 - **Status:** ❌ NOT CONFIGURED
-- **Domain:** api.felix-freund.com
+- **Domain:** api.your-domain.com
 - **Issue:** DNS record does not exist in Cloudflare
 - **Resolution:** DNS does not resolve
 
@@ -55,7 +55,7 @@
 
 **OR** use command:
 ```bash
-cloudflared tunnel route dns <TUNNEL-NAME> api.felix-freund.com
+cloudflared tunnel route dns <TUNNEL-NAME> api.your-domain.com
 ```
 
 ## 📊 Endpoints Available
@@ -81,7 +81,7 @@ cloudflared tunnel route dns <TUNNEL-NAME> api.felix-freund.com
 
 ### Loaded Variables
 - ✅ JWT_SECRET (64 chars)
-- ✅ CORS_ORIGINS (https://felix-freund.com, https://api.felix-freund.com)
+- ✅ CORS_ORIGINS (https://your-domain.com, https://api.your-domain.com)
 - ✅ PORT (8080)
 - ✅ Database credentials
 - ✅ Redis configuration
@@ -112,12 +112,12 @@ cloudflared tunnel route dns <TUNNEL-NAME> api.felix-freund.com
 ## 📝 Next Steps
 
 1. **Configure DNS in Cloudflare** (CRITICAL)
-   - Add CNAME record for api.felix-freund.com
+   - Add CNAME record for api.your-domain.com
    - Point to Cloudflare Tunnel
 
 2. **Test HTTPS Endpoint**
    ```bash
-   curl https://api.felix-freund.com/health
+   curl https://api.your-domain.com/health
    ```
 
 3. **Optional: Production Optimizations**
@@ -150,7 +150,7 @@ docker logs nas-api-postgres -f       # Database logs
 ### Health Checks
 ```bash
 curl http://localhost:8080/health           # Local
-curl https://api.felix-freund.com/health    # Public (once DNS configured)
+curl https://api.your-domain.com/health    # Public (once DNS configured)
 ./scripts/verify-https.sh                   # Full HTTPS verification
 ./scripts/diagnose-cloudflare.sh            # Cloudflare diagnostics
 ```

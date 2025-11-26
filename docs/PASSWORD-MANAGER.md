@@ -202,7 +202,7 @@ VAULT_DATA=$(gpg --quiet --batch --yes --passphrase "$MASTER_PW" --decrypt /srv/
 
 for i in 1 2 3; do
     KEY=$(echo "$VAULT_DATA" | jq -r ".vault_unseal_key_${i}.value")
-    curl -s -X POST -d "{\"key\":\"$KEY\"}" https://192.168.178.52:8200/v1/sys/unseal | jq '.sealed'
+    curl -s -X POST -d "{\"key\":\"$KEY\"}" https://192.168.x.x:8200/v1/sys/unseal | jq '.sealed'
 done
 ```
 

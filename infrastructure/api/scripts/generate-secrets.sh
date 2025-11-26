@@ -28,7 +28,7 @@ CSRF_SECRET=$(openssl rand -base64 32 | tr -d '\n')
 echo -e "  ${GREEN}✓${NC} Generated (43 characters)\n"
 
 # Create .env file
-ENV_FILE="/home/freun/Agent/infrastructure/api/.env"
+ENV_FILE="/home/user/Agent/infrastructure/api/.env"
 
 echo -e "${BLUE}Creating .env file...${NC}"
 
@@ -49,10 +49,10 @@ SESSION_SECRET=${SESSION_SECRET}
 CSRF_SECRET=${CSRF_SECRET}
 
 # === CORS Configuration ===
-CORS_ORIGINS=https://felix-freund.com,https://api.felix-freund.com
+CORS_ORIGINS=https://your-domain.com,https://api.your-domain.com
 
 # === Frontend URL ===
-FRONTEND_URL=https://felix-freund.com
+FRONTEND_URL=https://your-domain.com
 
 # === Rate Limiting ===
 RATE_LIMIT_PER_MIN=100
@@ -70,7 +70,7 @@ REDIS_PORT=6380
 
 # === Email Configuration (Resend) ===
 RESEND_API_KEY=re_AEhvFZrx_KRjdCcvcVHLcnPNY66ekBBFy
-EMAIL_FROM=NAS.AI <noreply@felix-freund.com>
+EMAIL_FROM=NAS.AI <noreply@your-domain.com>
 
 # === Cloudflare Configuration ===
 CLOUDFLARE_API_TOKEN=GjKJMQiS998conpswEJhOwQ5b-fKSGjVmmFsofJf
@@ -96,7 +96,7 @@ echo -e "export CSRF_SECRET='${CSRF_SECRET}'"
 echo ""
 
 # Create export script
-EXPORT_FILE="/home/freun/Agent/infrastructure/api/scripts/export-env.sh"
+EXPORT_FILE="/home/user/Agent/infrastructure/api/scripts/export-env.sh"
 cat > "$EXPORT_FILE" <<EOF
 #!/bin/bash
 # Export environment variables from .env file
@@ -108,8 +108,8 @@ export CSRF_SECRET='${CSRF_SECRET}'
 export PORT=8080
 export ENV=production
 export LOG_LEVEL=info
-export CORS_ORIGINS=https://felix-freund.com,https://api.felix-freund.com
-export FRONTEND_URL=https://felix-freund.com
+export CORS_ORIGINS=https://your-domain.com,https://api.your-domain.com
+export FRONTEND_URL=https://your-domain.com
 export RATE_LIMIT_PER_MIN=100
 
 echo "✓ Environment variables exported"
@@ -119,7 +119,7 @@ chmod +x "$EXPORT_FILE"
 echo -e "${GREEN}✓ Created export script: $EXPORT_FILE${NC}\n"
 
 # Update .gitignore
-GITIGNORE="/home/freun/Agent/infrastructure/api/.gitignore"
+GITIGNORE="/home/user/Agent/infrastructure/api/.gitignore"
 if [ -f "$GITIGNORE" ]; then
     if ! grep -q "^\.env$" "$GITIGNORE"; then
         echo ".env" >> "$GITIGNORE"
@@ -152,7 +152,7 @@ echo ""
 
 echo -e "${BLUE}Option 4: Load in systemd service${NC}"
 echo -e "  Edit /etc/systemd/system/nas-api.service"
-echo -e "  Add: EnvironmentFile=/home/freun/Agent/infrastructure/api/.env"
+echo -e "  Add: EnvironmentFile=/home/user/Agent/infrastructure/api/.env"
 echo ""
 
 echo -e "${GREEN}=== Security Reminders ===${NC}\n"

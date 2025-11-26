@@ -12,7 +12,7 @@
 
 ```http
 GET /auth/csrf HTTP/1.1
-Host: felix-freund.com
+Host: your-domain.com
 Authorization: Bearer <JWT_ACCESS_TOKEN>
 ```
 
@@ -112,7 +112,7 @@ TTL: 86400 seconds (24h)
 
 ### 1. User Login
 ```bash
-curl -X POST https://felix-freund.com/auth/login \
+curl -X POST https://your-domain.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"SecurePass123"}'
 ```
@@ -128,7 +128,7 @@ curl -X POST https://felix-freund.com/auth/login \
 
 ### 2. Get CSRF Token
 ```bash
-curl -X GET https://felix-freund.com/auth/csrf \
+curl -X GET https://your-domain.com/auth/csrf \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
 ```
 
@@ -141,7 +141,7 @@ curl -X GET https://felix-freund.com/auth/csrf \
 
 ### 3. Use CSRF Token for Protected Requests
 ```bash
-curl -X GET https://felix-freund.com/api/profile \
+curl -X GET https://your-domain.com/api/profile \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
   -H "X-CSRF-Token: xK9mF2nP8qR5sT7vW3yZ1bC4dE6gH8jL0mN..."
 ```
@@ -202,14 +202,14 @@ curl -s http://localhost:8080/auth/csrf
 
 ### Production Test (without auth - should fail)
 ```bash
-curl -s https://felix-freund.com/auth/csrf
+curl -s https://your-domain.com/auth/csrf
 # Response: {"error":{"code":"unauthorized",...}}
 ```
 
 ### Full Flow Test
 ```bash
 # 1. Login
-LOGIN_RESPONSE=$(curl -s -X POST https://felix-freund.com/auth/login \
+LOGIN_RESPONSE=$(curl -s -X POST https://your-domain.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"SecurePass123"}')
 
@@ -217,14 +217,14 @@ LOGIN_RESPONSE=$(curl -s -X POST https://felix-freund.com/auth/login \
 ACCESS_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.access_token')
 
 # 3. Get CSRF token
-CSRF_RESPONSE=$(curl -s -X GET https://felix-freund.com/auth/csrf \
+CSRF_RESPONSE=$(curl -s -X GET https://your-domain.com/auth/csrf \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 
 # 4. Extract CSRF token
 CSRF_TOKEN=$(echo $CSRF_RESPONSE | jq -r '.csrf_token')
 
 # 5. Use both tokens
-curl -X GET https://felix-freund.com/api/profile \
+curl -X GET https://your-domain.com/api/profile \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "X-CSRF-Token: $CSRF_TOKEN"
 ```
@@ -270,7 +270,7 @@ interface ErrorResponse {
 - ✅ Route registered: `GET /auth/csrf`
 - ✅ Auth middleware applied
 - ✅ Tested locally
-- ✅ Deployed to production: https://felix-freund.com/auth/csrf
+- ✅ Deployed to production: https://your-domain.com/auth/csrf
 - ✅ Redis integration working
 - ✅ Documentation complete
 

@@ -205,7 +205,7 @@ webui/
 
 ```bash
 # 1. Navigate to WebUI directory
-cd /home/freun/Agent/infrastructure/webui
+cd /home/user/Agent/infrastructure/webui
 
 # 2. Install dependencies
 npm install
@@ -441,13 +441,13 @@ The following blueprints define detailed UI/UX requirements:
 - `Blueprint_WebUI_Profile.md` - User profile
 - `Blueprint_WebUI_Settings.md` - Settings page
 
-Location: `/home/freun/Agent/docs/blueprints/`
+Location: `/home/user/Agent/docs/blueprints/`
 
 ---
 
 ## STATUS TRACKING
 
-**Statuslogs:** `/home/freun/Agent/status/WebUIAgent/phase1/`
+**Statuslogs:** `/home/user/Agent/status/WebUIAgent/phase1/`
 
 **Format:** `NNN_YYYYMMDD_task-description.md`
 
@@ -470,11 +470,11 @@ Location: `/home/freun/Agent/docs/blueprints/`
 
 ## REFERENCES
 
-- **System Architecture:** `/home/freun/Agent/NAS_AI_SYSTEM.md`
-- **Security Handbook:** `/home/freun/Agent/docs/security/SECURITY_HANDBOOK.pdf`
-- **Agent Matrix:** `/home/freun/Agent/docs/planning/AGENT_MATRIX.md`
-- **Dev Guide:** `/home/freun/Agent/docs/development/DEV_GUIDE.md`
-- **Blueprints:** `/home/freun/Agent/docs/blueprints/Blueprint_WebUI*.md`
+- **System Architecture:** `/home/user/Agent/NAS_AI_SYSTEM.md`
+- **Security Handbook:** `/home/user/Agent/docs/security/SECURITY_HANDBOOK.pdf`
+- **Agent Matrix:** `/home/user/Agent/docs/planning/AGENT_MATRIX.md`
+- **Dev Guide:** `/home/user/Agent/docs/development/DEV_GUIDE.md`
+- **Blueprints:** `/home/user/Agent/docs/blueprints/Blueprint_WebUI*.md`
 
 ---
 

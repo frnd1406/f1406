@@ -90,13 +90,13 @@ State-Änderungen werden im Statuslog dokumentiert (z. B. „Ticket → execut
 
 ## 8. Umsetzung & Review
 
-- Änderungen an diesem Dokument werden vom Orchestrator vorgeschlagen und durch Owner `freun` freigegeben.
+- Änderungen an diesem Dokument werden vom Orchestrator vorgeschlagen und durch Owner `user` freigegeben.
 - Jeder Agent bestätigt im nächsten Statuslog, dass Version 1.0 gelesen wurde (Rubrik „Pflichtlektüre“).
 - Feedback fließt über `status/DocumentationAgent/...` in die nächste Revision.
 
 ---
 
-**Kontakt:** Orchestrator-Team (`status/Orchestrator/Phase/...`) oder Owner `freun`.
+**Kontakt:** Orchestrator-Team (`status/Orchestrator/Phase/...`) oder Owner `user`.
 
 ---
 

@@ -79,18 +79,18 @@ definitions:
     required:
     - token
     type: object
-host: api.felix-freund.com
+host: api.your-domain.com
 info:
   contact:
-    email: support@api.felix-freund.com
+    email: support@api.your-domain.com
     name: API Support
-    url: https://api.felix-freund.com/support
+    url: https://api.your-domain.com/support
   description: Secure file storage and management API with authentication, email verification,
     and password reset.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-  termsOfService: https://api.felix-freund.com/terms
+  termsOfService: https://api.your-domain.com/terms
   title: NAS.AI API
   version: "1.0"
 paths:

@@ -2,12 +2,12 @@
 
 ## Domain Setup
 
-**Main Domain:** `felix-freund.com`
+**Main Domain:** `your-domain.com`
 
 ### Subdomains
 
-- **API:** `api.felix-freund.com`
-- **Frontend:** `felix-freund.com` (root domain)
+- **API:** `api.your-domain.com`
+- **Frontend:** `your-domain.com` (root domain)
 
 ## Cloudflare Tunnel Configuration
 
@@ -29,14 +29,14 @@ credentials-file: /home/user/.cloudflared/<TUNNEL-ID>.json
 
 ingress:
   # API Endpoint
-  - hostname: api.felix-freund.com
+  - hostname: api.your-domain.com
     service: http://localhost:8080
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
 
   # Frontend (optional)
-  - hostname: felix-freund.com
+  - hostname: your-domain.com
     service: http://localhost:5173
 
   # Catchall (required)
@@ -54,13 +54,13 @@ export ENV=production
 export LOG_LEVEL=info
 
 # CORS
-export CORS_ORIGINS=https://felix-freund.com,https://api.felix-freund.com
+export CORS_ORIGINS=https://your-domain.com,https://api.your-domain.com
 
 # Frontend
-export FRONTEND_URL=https://felix-freund.com
+export FRONTEND_URL=https://your-domain.com
 
 # Email
-export EMAIL_FROM="NAS.AI <noreply@felix-freund.com>"
+export EMAIL_FROM="NAS.AI <noreply@your-domain.com>"
 
 # Security
 export JWT_SECRET="<your-secure-secret-min-32-chars>"
@@ -81,37 +81,37 @@ export CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 export FRONTEND_URL=http://localhost:5173
 
 # Email
-export EMAIL_FROM="NAS.AI Dev <noreply@felix-freund.com>"
+export EMAIL_FROM="NAS.AI Dev <noreply@your-domain.com>"
 ```
 
 ## API Endpoints
 
 ### Base URLs
 
-- **Production:** `https://api.felix-freund.com`
+- **Production:** `https://api.your-domain.com`
 - **Development:** `http://localhost:8080`
 
 ### Example Endpoints
 
 ```
-GET  https://api.felix-freund.com/health
-POST https://api.felix-freund.com/auth/register
-POST https://api.felix-freund.com/auth/login
-GET  https://api.felix-freund.com/docs/swagger/index.html
+GET  https://api.your-domain.com/health
+POST https://api.your-domain.com/auth/register
+POST https://api.your-domain.com/auth/login
+GET  https://api.your-domain.com/docs/swagger/index.html
 ```
 
 ## Email Configuration
 
 ### Sender Addresses
 
-- **Production:** `noreply@felix-freund.com`
-- **Support:** `support@felix-freund.com`
+- **Production:** `noreply@your-domain.com`
+- **Support:** `support@your-domain.com`
 
 ### Email Templates
 
 All email templates reference:
-- Verification links: `https://felix-freund.com/verify?token=...`
-- Password reset: `https://felix-freund.com/reset-password?token=...`
+- Verification links: `https://your-domain.com/verify?token=...`
+- Password reset: `https://your-domain.com/reset-password?token=...`
 
 ## SSL/TLS
 
@@ -131,25 +131,25 @@ All email templates reference:
 ./scripts/verify-https.sh
 
 # Or test specific URL
-./scripts/verify-https.sh https://api.felix-freund.com
+./scripts/verify-https.sh https://api.your-domain.com
 ```
 
 ### Manual Tests
 
 ```bash
 # Check API health
-curl https://api.felix-freund.com/health
+curl https://api.your-domain.com/health
 
 # Check SSL certificate
-echo | openssl s_client -servername api.felix-freund.com -connect api.felix-freund.com:443
+echo | openssl s_client -servername api.your-domain.com -connect api.your-domain.com:443
 
 # Check headers
-curl -I https://api.felix-freund.com/health
+curl -I https://api.your-domain.com/health
 ```
 
 ## Updated Files
 
-All references to `nas.felix-freund.com` have been updated to `felix-freund.com`:
+All references to `nas.your-domain.com` have been updated to `your-domain.com`:
 
 - ✅ `src/config/config.go` - Email and Frontend URL defaults
 - ✅ `src/main.go` - Swagger documentation
@@ -184,7 +184,7 @@ sudo systemctl restart cloudflared
 sudo systemctl restart nas-api
 
 # Or manually
-cd /home/freun/Agent/infrastructure/api
+cd /home/user/Agent/infrastructure/api
 ./bin/api
 ```
 
@@ -198,6 +198,6 @@ cd /home/freun/Agent/infrastructure/api
 
 ### External Tools
 
-- **SSL Test:** https://www.ssllabs.com/ssltest/analyze.html?d=api.felix-freund.com
-- **Security Headers:** https://securityheaders.com/?q=api.felix-freund.com
-- **DNS Check:** https://dnschecker.org/#A/api.felix-freund.com
+- **SSL Test:** https://www.ssllabs.com/ssltest/analyze.html?d=api.your-domain.com
+- **Security Headers:** https://securityheaders.com/?q=api.your-domain.com
+- **DNS Check:** https://dnschecker.org/#A/api.your-domain.com

@@ -31,16 +31,16 @@ import (
 // @title NAS.AI API
 // @version 1.0
 // @description Secure file storage and management API with authentication, email verification, and password reset.
-// @termsOfService https://felix-freund.com/terms
+// @termsOfService https://your-domain.com/terms
 
 // @contact.name API Support
-// @contact.url https://felix-freund.com/support
-// @contact.email support@felix-freund.com
+// @contact.url https://your-domain.com/support
+// @contact.email support@your-domain.com
 
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host api.felix-freund.com
+// @host api.your-domain.com
 // @BasePath /
 
 // @securityDefinitions.apikey BearerAuth

@@ -188,7 +188,7 @@ const useFilesStore = create<FilesStore>((set, get) => ({
 
 ## ⚠️ Was beim Cleanup LÖSCHEN
 - Alle .backup Dateien
-- Temporäre Daten in `/home/freun/Agent/infrastructure/data/`
+- Temporäre Daten in `/home/user/Agent/infrastructure/data/`
 - `node_modules/.cache/**`
 - Alte API binaries (rebuild fresh)
 

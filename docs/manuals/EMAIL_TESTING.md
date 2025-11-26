@@ -13,19 +13,19 @@ Die API sendet automatisch Emails bei folgenden Events:
 
 ### 1. Domain bei Resend verifizieren
 
-Die Domain `felix-freund.com` ist bereits konfiguriert mit folgenden DNS Records:
+Die Domain `your-domain.com` ist bereits konfiguriert mit folgenden DNS Records:
 
 ```bash
 # DKIM Record (TXT)
-resend._domainkey.felix-freund.com
+resend._domainkey.your-domain.com
 Value: p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVL1VXo+NbND+1ORSZZntLheQnKdXsJ0K9bK2xqLx2SEw8VhGyI/UpwK4zhJDsFkiGQrVMvC6/57IzxRGDKVy+8Iy38JDKbnWpCeyu06CieplpcB2v8TwdhxhDMq+vP22/48yO4TGsiCFsKFymzENcwN7Pq7smPh5qpYkdLLGh7wIDAQAB
 
 # SPF Record (TXT)
-send.felix-freund.com
+send.your-domain.com
 Value: v=spf1 include:amazonses.com ~all
 
 # SPF Record (MX)
-send.felix-freund.com
+send.your-domain.com
 Value: feedback-smtp.us-east-1.amazonses.com
 Priority: 10
 ```
@@ -36,11 +36,11 @@ Priority: 10
 # Mit allen Email-Env-Vars
 export JWT_SECRET="$(openssl rand -base64 32)"
 export PORT=8080
-export CORS_ORIGINS="http://localhost:5173,https://felix-freund.com"
+export CORS_ORIGINS="http://localhost:5173,https://your-domain.com"
 export RATE_LIMIT_PER_MIN=100
 export RESEND_API_KEY="re_AEhvFZrx_KRjdCcvcVHLcnPNY66ekBBFy"
-export EMAIL_FROM="NAS.AI <noreply@felix-freund.com>"
-export FRONTEND_URL="https://felix-freund.com"
+export EMAIL_FROM="NAS.AI <noreply@your-domain.com>"
+export FRONTEND_URL="https://your-domain.com"
 export CLOUDFLARE_API_TOKEN="GjKJMQiS998conpswEJhOwQ5b-fKSGjVmmFsofJf"
 
 ./bin/api
@@ -90,9 +90,9 @@ curl -X POST http://localhost:8080/auth/register \
 
 Die Email enthält:
 - **Subject**: "Verify your NAS.AI email address"
-- **From**: NAS.AI <noreply@felix-freund.com>
+- **From**: NAS.AI <noreply@your-domain.com>
 - **Button**: "Verify Email Address"
-- **Link**: `https://felix-freund.com/verify-email?token=XXXXXX`
+- **Link**: `https://your-domain.com/verify-email?token=XXXXXX`
 - **Expiry**: 24 Stunden
 
 ## Test 2: Email Verifizierung
@@ -182,7 +182,7 @@ curl -X POST http://localhost:8080/auth/reset-password \
 - **Subject**: "Reset your NAS.AI password"
 - **Button**: Red "Reset Password" button
 - **Warning Box**: Yellow warning if not requested
-- **Link**: `https://felix-freund.com/reset-password?token=XXXXX`
+- **Link**: `https://your-domain.com/reset-password?token=XXXXX`
 - **Expiry**: 1 Stunde
 
 ## Troubleshooting
@@ -191,7 +191,7 @@ curl -X POST http://localhost:8080/auth/reset-password \
 
 **Error**:
 ```json
-{"error":"The felix-freund.com domain is not verified"}
+{"error":"The your-domain.com domain is not verified"}
 ```
 
 **Lösung**: Domain Status prüfen
@@ -206,13 +206,13 @@ Status sollte `"verified"` sein.
 
 ```bash
 # DKIM Record
-dig TXT resend._domainkey.felix-freund.com
+dig TXT resend._domainkey.your-domain.com
 
 # SPF TXT Record
-dig TXT send.felix-freund.com
+dig TXT send.your-domain.com
 
 # SPF MX Record
-dig MX send.felix-freund.com
+dig MX send.your-domain.com
 ```
 
 ### Email kommt nicht an

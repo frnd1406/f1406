@@ -6,9 +6,9 @@
 ## 🚀 Erfolgreich Deployed
 
 ### ✅ API Status
-- **URL:** https://felix-freund.com
-- **Health Endpoint:** https://felix-freund.com/health
-- **Swagger Docs:** https://felix-freund.com/swagger/index.html
+- **URL:** https://your-domain.com
+- **Health Endpoint:** https://your-domain.com/health
+- **Swagger Docs:** https://your-domain.com/swagger/index.html
 - **Status:** RUNNING ✅
 
 ### ✅ Services Running
@@ -55,7 +55,7 @@ Service: cloudflared.service
 **Cloudflare DNS Records:**
 ```
 Type: CNAME
-Name: felix-freund.com
+Name: your-domain.com
 Content: 4e38f624-22ad-4072-839...cfargotunnel.com
 Proxy: 🟠 Mit Proxy (Orange Cloud) ✅
 TTL: Auto
@@ -63,8 +63,8 @@ TTL: Auto
 
 **DNS Resolution:**
 ```
-felix-freund.com → 188.114.97.3 (Cloudflare)
-felix-freund.com → 188.114.96.3 (Cloudflare)
+your-domain.com → 188.114.97.3 (Cloudflare)
+your-domain.com → 188.114.96.3 (Cloudflare)
 ```
 
 ### ✅ SSL/TLS Configuration
@@ -169,7 +169,7 @@ systemctl status cloudflared
 
 ### Start Services
 ```bash
-cd /home/freun/Agent/infrastructure/api
+cd /home/user/Agent/infrastructure/api
 
 # Start all dependencies
 ./scripts/start-all.sh
@@ -202,13 +202,13 @@ docker logs nas-api-redis -f
 curl http://localhost:8080/health
 
 # Public Health (HTTPS)
-curl https://felix-freund.com/health
+curl https://your-domain.com/health
 
 # Full HTTPS Verification
-./scripts/verify-https.sh https://felix-freund.com
+./scripts/verify-https.sh https://your-domain.com
 
 # Cloudflare Diagnostics
-./scripts/diagnose-cloudflare.sh felix-freund.com
+./scripts/diagnose-cloudflare.sh your-domain.com
 ```
 
 ---
@@ -234,7 +234,7 @@ journalctl -u cloudflared -n 20
 ### Performance Metrics
 ```bash
 # API Response Time
-time curl -s https://felix-freund.com/health
+time curl -s https://your-domain.com/health
 
 # Database Size
 docker exec nas-api-postgres psql -U nas_user -d nas_db -c "\l+"
@@ -274,7 +274,7 @@ pkill -f "bin/api"
 tail -f logs/api.log
 
 # Test endpoint
-curl https://felix-freund.com/health
+curl https://your-domain.com/health
 ```
 
 ---
@@ -288,8 +288,8 @@ ENV=production
 LOG_LEVEL=info
 
 JWT_SECRET=<64-char-secret>
-CORS_ORIGINS=https://felix-freund.com
-FRONTEND_URL=https://felix-freund.com
+CORS_ORIGINS=https://your-domain.com
+FRONTEND_URL=https://your-domain.com
 
 DB_HOST=localhost
 DB_PORT=5433
@@ -297,10 +297,10 @@ REDIS_HOST=localhost
 REDIS_PORT=6380
 
 RESEND_API_KEY=<api-key>
-EMAIL_FROM="NAS.AI <noreply@felix-freund.com>"
+EMAIL_FROM="NAS.AI <noreply@your-domain.com>"
 ```
 
-**File Location:** `/home/freun/Agent/infrastructure/api/.env`
+**File Location:** `/home/user/Agent/infrastructure/api/.env`
 
 ---
 
@@ -411,5 +411,5 @@ docker ps | grep postgres
 
 **🎉 Gratulation! Die NAS API ist erfolgreich deployed und läuft in Production! 🎉**
 
-**URL:** https://felix-freund.com
+**URL:** https://your-domain.com
 **Status:** LIVE ✅

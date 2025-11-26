@@ -70,8 +70,8 @@ Protocol: TCP
 
 ```bash
 export PORT=8080
-export CORS_ORIGINS=https://api.felix-freund.com,https://felix-freund.com
-export FRONTEND_URL=https://felix-freund.com
+export CORS_ORIGINS=https://api.your-domain.com,https://your-domain.com
+export FRONTEND_URL=https://your-domain.com
 ./bin/api
 ```
 
@@ -142,14 +142,14 @@ credentials-file: /home/user/.cloudflared/<TUNNEL-ID>.json
 
 ingress:
   # API Endpoint
-  - hostname: api.felix-freund.com
+  - hostname: api.your-domain.com
     service: http://localhost:8080
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
 
   # Falls du auch Frontend über Tunnel laufen lassen willst
-  - hostname: felix-freund.com
+  - hostname: your-domain.com
     service: http://localhost:5173
 
   # Catchall (required)
@@ -159,7 +159,7 @@ ingress:
 #### 5. Add DNS Record in Cloudflare
 
 ```bash
-cloudflared tunnel route dns nas-api api.felix-freund.com
+cloudflared tunnel route dns nas-api api.your-domain.com
 ```
 
 Oder manuell im Dashboard:
@@ -187,7 +187,7 @@ sudo systemctl status cloudflared
 
 ```bash
 export PORT=8080
-export CORS_ORIGINS=https://api.felix-freund.com,https://felix-freund.com
+export CORS_ORIGINS=https://api.your-domain.com,https://your-domain.com
 ./bin/api
 ```
 
@@ -279,8 +279,8 @@ func main() {
 // In deiner CORS Config
 corsConfig := cors.Config{
     AllowOrigins: []string{
-        "https://felix-freund.com",
-        "https://api.felix-freund.com",
+        "https://your-domain.com",
+        "https://api.your-domain.com",
     },
     AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
     AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
@@ -317,7 +317,7 @@ sudo journalctl -u cloudflared -n 100
 
 ```bash
 # Test from outside
-curl https://api.felix-freund.com/health
+curl https://api.your-domain.com/health
 
 # Should return 200 OK
 ```
@@ -375,7 +375,7 @@ cloudflared tunnel create nas-api
 nano ~/.cloudflared/config.yml
 
 # 5. Route DNS
-cloudflared tunnel route dns nas-api api.felix-freund.com
+cloudflared tunnel route dns nas-api api.your-domain.com
 
 # 6. Install service
 sudo cloudflared service install
@@ -384,7 +384,7 @@ sudo systemctl enable cloudflared
 
 # 7. Start API
 export PORT=8080
-export CORS_ORIGINS=https://felix-freund.com
+export CORS_ORIGINS=https://your-domain.com
 ./bin/api
 ```
 

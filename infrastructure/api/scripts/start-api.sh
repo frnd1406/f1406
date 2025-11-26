@@ -5,7 +5,7 @@
 
 set -e
 
-cd /home/freun/Agent/infrastructure/api
+cd /home/user/Agent/infrastructure/api
 
 # Load environment variables
 if [ -f .env ]; then

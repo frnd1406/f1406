@@ -1,7 +1,7 @@
 [
   {
     "name": "nas-api",
-    "url": "https://felix-freund.com/health",
+    "url": "https://your-domain.com/health",
     "registered_at": "2025-11-22T18:00:00Z",
     "tags": ["core", "api", "production"],
     "metadata": {"language": "go", "type": "backend", "env": "production"}

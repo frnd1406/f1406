@@ -86,7 +86,7 @@ agents:
 permissions:
 # ssh_access Werte:
 # - none: kein direkter SSH-Zugriff
-# - delegated-superuser: Aktionen laufen ausschließlich innerhalb einer von `freun` initiierten Session
+# - delegated-superuser: Aktionen laufen ausschließlich innerhalb einer von `user` initiierten Session
   SystemSetupAgent:
     run_as: root
     sudo_policy: unrestricted

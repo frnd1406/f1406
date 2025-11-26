@@ -19,4 +19,4 @@ dev: build
 	API_URL=http://localhost:8080 ./bin/orchestrator
 
 prod: build
-	API_URL=https://felix-freund.com ./bin/orchestrator
+	API_URL=https://your-domain.com ./bin/orchestrator

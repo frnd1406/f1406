@@ -109,11 +109,11 @@ cd webui && npm run dev
 
 ## ARCHITECTURE REFERENCES
 
-- **System Overview:** `/home/freun/Agent/NAS_AI_SYSTEM.md`
-- **Roadmap:** `/home/freun/Agent/docs/planning/MASTER_ROADMAP.md`
-- **Agent Matrix:** `/home/freun/Agent/docs/planning/AGENT_MATRIX.md`
-- **Dev Guide:** `/home/freun/Agent/docs/development/DEV_GUIDE.md`
-- **Security:** `/home/freun/Agent/docs/security/SECURITY_HANDBOOK.pdf`
+- **System Overview:** `/home/user/Agent/NAS_AI_SYSTEM.md`
+- **Roadmap:** `/home/user/Agent/docs/planning/MASTER_ROADMAP.md`
+- **Agent Matrix:** `/home/user/Agent/docs/planning/AGENT_MATRIX.md`
+- **Dev Guide:** `/home/user/Agent/docs/development/DEV_GUIDE.md`
+- **Security:** `/home/user/Agent/docs/security/SECURITY_HANDBOOK.pdf`
 
 ---
 
@@ -149,7 +149,7 @@ cd webui && npm run dev
 ## CONTACT & SUPPORT
 
 **Orchestrator:** Koordiniert alle Infrastructure-Aktivitäten
-**Status Logs:** `/home/freun/Agent/status/<AgentName>/`
+**Status Logs:** `/home/user/Agent/status/<AgentName>/`
 **Issues:** Incident-Tickets in `/var/lib/orchestrator/incidents/` (future)
 
 ---

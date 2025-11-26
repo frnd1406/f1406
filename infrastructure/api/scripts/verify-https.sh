@@ -15,7 +15,7 @@ NC='\033[0m'
 echo -e "${GREEN}=== HTTPS Verification Tool ===${NC}\n"
 
 # Configuration
-API_URL="${1:-https://api.felix-freund.com}"
+API_URL="${1:-https://api.your-domain.com}"
 HEALTH_ENDPOINT="$API_URL/health"
 
 echo -e "${BLUE}Testing URL:${NC} $API_URL\n"

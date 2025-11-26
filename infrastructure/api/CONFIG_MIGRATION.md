@@ -274,7 +274,7 @@ $ curl http://localhost:8080/health | jq .
 
 ### Production Test
 ```bash
-$ curl https://felix-freund.com/health | jq .
+$ curl https://your-domain.com/health | jq .
 {
   "service": "nas-api",
   "status": "ok",

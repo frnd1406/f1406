@@ -17,7 +17,7 @@ NC='\033[0m'
 echo -e "${GREEN}=== Starting NAS API Stack ===${NC}\n"
 
 # Change to API directory
-cd /home/freun/Agent/infrastructure/api
+cd /home/user/Agent/infrastructure/api
 
 # 1. Start PostgreSQL
 echo -e "${YELLOW}[1/4]${NC} Starting PostgreSQL..."

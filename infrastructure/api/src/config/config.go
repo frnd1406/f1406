@@ -130,8 +130,8 @@ func LoadConfigFromEnv() (*Config, error) {
 
 	// Email Configuration (Phase 3)
 	cfg.ResendAPIKey = getEnv("RESEND_API_KEY", "")
-	cfg.EmailFrom = getEnv("EMAIL_FROM", "NAS.AI <noreply@felix-freund.com>")
-	cfg.FrontendURL = getEnv("FRONTEND_URL", "https://felix-freund.com")
+	cfg.EmailFrom = getEnv("EMAIL_FROM", "NAS.AI <noreply@your-domain.com>")
+	cfg.FrontendURL = getEnv("FRONTEND_URL", "https://your-domain.com")
 
 	// Cloudflare Configuration (Phase 3)
 	cfg.CloudflareAPIToken = getEnv("CLOUDFLARE_API_TOKEN", "")

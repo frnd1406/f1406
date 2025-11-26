@@ -8,11 +8,11 @@
 ## ✅ Deployment Erfolgreich
 
 ### Production URL
-🌐 **https://felix-freund.com**
+🌐 **https://your-domain.com**
 
 ### Verified Endpoints
-- ✅ Health Check: https://felix-freund.com/health
-- ✅ API Documentation: https://felix-freund.com/swagger/
+- ✅ Health Check: https://your-domain.com/health
+- ✅ API Documentation: https://your-domain.com/swagger/
 - ✅ Auth Endpoints: /auth/register, /auth/login, etc.
 
 ---
@@ -23,7 +23,7 @@
 ```
 ✅ Valid SSL Certificate
    Issuer: Google Trust Services (WE1)
-   Subject: felix-freund.com
+   Subject: your-domain.com
    Valid: Nov 20, 2025 → Feb 18, 2026
    Cloudflare Protection: Active
    CF-Ray: Active
@@ -86,7 +86,7 @@
 ### Cloudflare Tunnel Config
 ```yaml
 ingress:
-  - hostname: felix-freund.com
+  - hostname: your-domain.com
     service: http://localhost:8080
     access:
       required: false
@@ -108,8 +108,8 @@ PORT=8080
 ENV=production
 LOG_LEVEL=info
 JWT_SECRET=<64-char-secret>
-CORS_ORIGINS=https://felix-freund.com,https://api.felix-freund.com
-FRONTEND_URL=https://felix-freund.com
+CORS_ORIGINS=https://your-domain.com,https://api.your-domain.com
+FRONTEND_URL=https://your-domain.com
 ```
 
 ---
@@ -118,25 +118,25 @@ FRONTEND_URL=https://felix-freund.com
 
 ### Public Authentication Endpoints
 ```
-POST https://felix-freund.com/auth/register
-POST https://felix-freund.com/auth/login
-POST https://felix-freund.com/auth/refresh
-POST https://felix-freund.com/auth/logout
-POST https://felix-freund.com/auth/verify-email
-POST https://felix-freund.com/auth/resend-verification
-POST https://felix-freund.com/auth/forgot-password
-POST https://felix-freund.com/auth/reset-password
+POST https://your-domain.com/auth/register
+POST https://your-domain.com/auth/login
+POST https://your-domain.com/auth/refresh
+POST https://your-domain.com/auth/logout
+POST https://your-domain.com/auth/verify-email
+POST https://your-domain.com/auth/resend-verification
+POST https://your-domain.com/auth/forgot-password
+POST https://your-domain.com/auth/reset-password
 ```
 
 ### Protected Endpoints (Auth Required)
 ```
-GET https://felix-freund.com/api/profile
+GET https://your-domain.com/api/profile
 ```
 
 ### Health & Documentation
 ```
-GET https://felix-freund.com/health
-GET https://felix-freund.com/swagger/index.html
+GET https://your-domain.com/health
+GET https://your-domain.com/swagger/index.html
 ```
 
 ---
@@ -178,7 +178,7 @@ Cloudflare Tunnel:          4 active connections
 
 ### Start Services
 ```bash
-cd /home/freun/Agent/infrastructure/api
+cd /home/user/Agent/infrastructure/api
 
 # Start all services
 ./scripts/start-all.sh
@@ -197,7 +197,7 @@ systemctl status cloudflared
 journalctl -u cloudflared -f
 
 # Health Check
-curl https://felix-freund.com/health
+curl https://your-domain.com/health
 ```
 
 ### Stop Services
@@ -212,15 +212,15 @@ curl https://felix-freund.com/health
 ### Manual Tests
 ```bash
 # Health Check
-curl https://felix-freund.com/health
+curl https://your-domain.com/health
 
 # Register User (example)
-curl -X POST https://felix-freund.com/auth/register \
+curl -X POST https://your-domain.com/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"SecurePass123"}'
 
 # Full HTTPS Verification
-./scripts/verify-https.sh https://felix-freund.com
+./scripts/verify-https.sh https://your-domain.com
 ```
 
 ### Automated Tests
@@ -301,7 +301,7 @@ go test ./...
 
 ### Logs Location
 ```
-API Logs:        /home/freun/Agent/infrastructure/api/logs/api.log
+API Logs:        /home/user/Agent/infrastructure/api/logs/api.log
 Tunnel Logs:     journalctl -u cloudflared
 Database Logs:   docker logs nas-api-postgres
 Redis Logs:      docker logs nas-api-redis
@@ -329,7 +329,7 @@ docker restart nas-api-postgres nas-api-redis
 
 **🎉 Die NAS API ist erfolgreich deployed und läuft in Production! 🎉**
 
-- ✅ **URL:** https://felix-freund.com
+- ✅ **URL:** https://your-domain.com
 - ✅ **Status:** LIVE
 - ✅ **Health:** OK
 - ✅ **SSL:** Valid

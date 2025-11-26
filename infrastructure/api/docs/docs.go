@@ -9,11 +9,11 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "https://api.felix-freund.com/terms",
+        "termsOfService": "https://api.your-domain.com/terms",
         "contact": {
             "name": "API Support",
-            "url": "https://api.felix-freund.com/support",
-            "email": "support@api.felix-freund.com"
+            "url": "https://api.your-domain.com/support",
+            "email": "support@api.your-domain.com"
         },
         "license": {
             "name": "MIT",
@@ -581,7 +581,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "api.felix-freund.com",
+	Host:             "api.your-domain.com",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "NAS.AI API",

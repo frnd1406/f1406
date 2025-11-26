@@ -23,13 +23,13 @@ jwt_secret_file: "/run/secrets/jwt_secret"
 
 # Database Configuration
 # Option 1: Full connection URL
-database_url: "postgres://nas_user:nas_dev_password@localhost:5433/nas_db?sslmode=disable"
+database_url: "postgres://nas_user:CHANGE_ME_DB_PASSWORD@localhost:5433/nas_db?sslmode=disable"
 
 # Option 2: Individual components (used if database_url is not set)
 db_host: "localhost"
 db_port: "5433"
 db_user: "nas_user"
-db_password: "nas_dev_password"
+db_password: "CHANGE_ME_DB_PASSWORD"
 db_name: "nas_db"
 
 # Redis Configuration
@@ -42,8 +42,8 @@ redis_port: "6380"
 
 # Email Configuration (Resend)
 resend_api_key: "YOUR_RESEND_API_KEY"
-email_from: "NAS.AI <noreply@felix-freund.com>"
-frontend_url: "https://felix-freund.com"
+email_from: "NAS.AI <noreply@your-domain.com>"
+frontend_url: "https://your-domain.com"
 
 # Cloudflare Configuration
 cloudflare_api_token: "YOUR_CLOUDFLARE_API_TOKEN"

@@ -14,8 +14,7 @@ import {
   FolderOpen,
   Calendar,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
+  X,
 } from "lucide-react";
 
 const API_BASE =
@@ -40,8 +39,8 @@ export default function Backup() {
   const [busy, setBusy] = useState(false);
   const [processingId, setProcessingId] = useState(null);
 
-  // Settings State
-  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  // Settings State - RENAMED to showSettingsModal
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -121,6 +120,7 @@ export default function Backup() {
 
       setSuccessMessage(`✓ Einstellungen gespeichert! Nächstes Backup um ${backupSchedule} Uhr`);
       setTimeout(() => setSuccessMessage(""), 5000);
+      setShowSettingsModal(false); // Close modal on success
     } catch (err) {
       setError(err.message || "Speichern fehlgeschlagen");
     } finally {
@@ -246,16 +246,15 @@ export default function Backup() {
         </div>
       )}
 
-      {/* Settings Panel */}
+      {/* Settings Button - Opens Modal */}
       <GlassCard>
         <div className="p-6">
-          {/* Settings Header */}
           <button
-            onClick={() => setSettingsExpanded(!settingsExpanded)}
-            className="w-full flex items-center justify-between group"
+            onClick={() => setShowSettingsModal(true)}
+            className="w-full flex items-center justify-between group hover:bg-white/5 p-3 rounded-xl transition-all"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-500/20 border border-violet-500/30">
+              <div className="p-2 rounded-lg bg-violet-500/20 border border-violet-500/30 group-hover:bg-violet-500/30 transition-colors">
                 <Settings size={20} className="text-violet-400" />
               </div>
               <div className="text-left">
@@ -268,124 +267,164 @@ export default function Backup() {
               </div>
             </div>
             <div className="text-slate-400 group-hover:text-white transition-colors">
-              {settingsExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              <Settings size={18} className="opacity-50" />
             </div>
           </button>
-
-          {/* Settings Content */}
-          {settingsExpanded && (
-            <div className="mt-6 space-y-6 pt-6 border-t border-white/5">
-              {settingsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 size={24} className="text-blue-400 animate-spin" />
-                </div>
-              ) : (
-                <>
-                  {/* Schedule Time */}
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                      <Clock size={16} className="text-blue-400" />
-                      Backup-Zeitplan
-                    </label>
-                    <input
-                      type="time"
-                      value={backupSchedule}
-                      onChange={(e) => setBackupSchedule(e.target.value)}
-                      className="w-full md:w-64 px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Tägliches automatisches Backup zur angegebenen Uhrzeit
-                    </p>
-                  </div>
-
-                  {/* Retention Period */}
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                      <Calendar size={16} className="text-blue-400" />
-                      Aufbewahrungszeitraum
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="range"
-                        min="1"
-                        max="30"
-                        value={retentionDays}
-                        onChange={(e) => setRetentionDays(parseInt(e.target.value))}
-                        className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                      />
-                      <div className="px-4 py-2 bg-slate-800 border border-white/10 rounded-lg min-w-[80px] text-center">
-                        <span className="text-white font-mono font-medium">{retentionDays}</span>
-                        <span className="text-slate-400 text-xs ml-1">Tage</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      Ältere Backups werden automatisch gelöscht. Behalte die letzten <span className="text-blue-400 font-medium">{retentionDays}</span> Snapshots.
-                    </p>
-                  </div>
-
-                  {/* Backup Path */}
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                      <FolderOpen size={16} className="text-blue-400" />
-                      Speicherort
-                    </label>
-                    <input
-                      type="text"
-                      value={backupPath}
-                      onChange={(e) => setBackupPath(e.target.value)}
-                      placeholder="/mnt/backups"
-                      className="w-full px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Pfad zum Backup-Verzeichnis auf dem NAS
-                    </p>
-                  </div>
-
-                  {/* Auto-Backup Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${autoBackupEnabled ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-slate-700 border-white/5'} border transition-colors`}>
-                        <CheckCircle size={18} className={autoBackupEnabled ? 'text-emerald-400' : 'text-slate-500'} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">Automatische Backups</p>
-                        <p className="text-xs text-slate-400">Aktiviert geplante tägliche Snapshots</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoBackupEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-
-                  {/* Save Button */}
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
-                    <button
-                      onClick={saveSettings}
-                      disabled={settingsSaving}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg font-medium transition-all border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
-                    >
-                      {settingsSaving ? (
-                        <>
-                          <Loader2 size={18} className="animate-spin" />
-                          <span>Speichere...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Save size={18} />
-                          <span>Einstellungen speichern</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
       </GlassCard>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          {/* Modal Container */}
+          <div className="w-full max-w-2xl animate-in zoom-in-95 duration-200">
+            <GlassCard className="max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                {/* Modal Header */}
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-violet-500/20 border border-violet-500/30">
+                      <Settings size={24} className="text-violet-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white tracking-tight">
+                        Backup-Einstellungen
+                      </h2>
+                      <p className="text-slate-400 text-sm mt-1">
+                        Konfigurieren Sie Ihre Backup-Strategie
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setShowSettingsModal(false)}
+                    className="p-2 rounded-lg bg-slate-800/50 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/10 hover:border-rose-500/30 transition-all"
+                    title="Schließen"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Settings Form */}
+                {settingsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={32} className="text-blue-400 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Schedule Time */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                        <Clock size={16} className="text-blue-400" />
+                        Backup-Zeitplan
+                      </label>
+                      <input
+                        type="time"
+                        value={backupSchedule}
+                        onChange={(e) => setBackupSchedule(e.target.value)}
+                        className="w-full md:w-64 px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Tägliches automatisches Backup zur angegebenen Uhrzeit
+                      </p>
+                    </div>
+
+                    {/* Retention Period */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                        <Calendar size={16} className="text-blue-400" />
+                        Aufbewahrungszeitraum
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="1"
+                          max="30"
+                          value={retentionDays}
+                          onChange={(e) => setRetentionDays(parseInt(e.target.value))}
+                          className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        />
+                        <div className="px-4 py-2 bg-slate-800 border border-white/10 rounded-lg min-w-[80px] text-center">
+                          <span className="text-white font-mono font-medium">{retentionDays}</span>
+                          <span className="text-slate-400 text-xs ml-1">Tage</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Ältere Backups werden automatisch gelöscht. Behalte die letzten <span className="text-blue-400 font-medium">{retentionDays}</span> Snapshots.
+                      </p>
+                    </div>
+
+                    {/* Backup Path */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                        <FolderOpen size={16} className="text-blue-400" />
+                        Speicherort
+                      </label>
+                      <input
+                        type="text"
+                        value={backupPath}
+                        onChange={(e) => setBackupPath(e.target.value)}
+                        placeholder="/mnt/backups"
+                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Pfad zum Backup-Verzeichnis auf dem NAS
+                      </p>
+                    </div>
+
+                    {/* Auto-Backup Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${autoBackupEnabled ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-slate-700 border-white/5'} border transition-colors`}>
+                          <CheckCircle size={18} className={autoBackupEnabled ? 'text-emerald-400' : 'text-slate-500'} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white">Automatische Backups</p>
+                          <p className="text-xs text-slate-400">Aktiviert geplante tägliche Snapshots</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setAutoBackupEnabled(!autoBackupEnabled)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoBackupEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
+                      <button
+                        onClick={() => setShowSettingsModal(false)}
+                        className="px-6 py-2.5 bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg font-medium transition-all border border-white/10"
+                      >
+                        Abbrechen
+                      </button>
+                      <button
+                        onClick={saveSettings}
+                        disabled={settingsSaving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg font-medium transition-all border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+                      >
+                        {settingsSaving ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            <span>Speichere...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save size={18} />
+                            <span>Einstellungen speichern</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+          </div>
+        </div>
+      )}
 
       {/* Backups List */}
       <GlassCard>

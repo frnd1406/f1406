@@ -164,6 +164,11 @@ func main() {
 		middleware.AuditLogger(logger),   // 6. Audit logging
 	)
 
+	// Allow OPTIONS preflight globally without auth/CSRF
+	r.OPTIONS("/*path", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
 	// Store environment in context for middleware
 	r.Use(func(c *gin.Context) {
 		c.Set("environment", cfg.Environment)
@@ -249,6 +254,10 @@ func main() {
 		storageV1.POST("/upload", handlers.StorageUploadHandler(storageService, logger))
 		storageV1.GET("/download", handlers.StorageDownloadHandler(storageService, logger))
 		storageV1.DELETE("/delete", handlers.StorageDeleteHandler(storageService, logger))
+		storageV1.GET("/trash", handlers.StorageTrashListHandler(storageService, logger))
+		storageV1.POST("/trash/restore/:id", handlers.StorageTrashRestoreHandler(storageService, logger))
+		storageV1.DELETE("/trash/:id", handlers.StorageTrashDeleteHandler(storageService, logger))
+		storageV1.POST("/rename", handlers.StorageRenameHandler(storageService, logger))
 	}
 
 	backupV1 := r.Group("/api/v1/backups")

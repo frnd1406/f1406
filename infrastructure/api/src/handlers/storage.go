@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nas-ai/api/src/services"
@@ -26,6 +27,11 @@ func handleStorageError(c *gin.Context, err error, logger *logrus.Logger, reques
 	}).Warn("storage: request failed")
 
 	c.JSON(status, gin.H{"error": "storage operation failed"})
+}
+
+type renameRequest struct {
+	OldPath string `json:"oldPath" binding:"required"`
+	NewName string `json:"newName" binding:"required"`
 }
 
 func StorageListHandler(storage *services.StorageService, logger *logrus.Logger) gin.HandlerFunc {
@@ -112,5 +118,65 @@ func StorageDeleteHandler(storage *services.StorageService, logger *logrus.Logge
 		}
 
 		c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	}
+}
+
+func StorageTrashListHandler(storage *services.StorageService, logger *logrus.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetString("request_id")
+		items, err := storage.ListTrash()
+		if err != nil {
+			handleStorageError(c, err, logger, requestID)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"items": items})
+	}
+}
+
+func StorageTrashRestoreHandler(storage *services.StorageService, logger *logrus.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetString("request_id")
+		id := c.Param("id")
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+			return
+		}
+		if err := storage.RestoreFromTrash(filepath.ToSlash(id)); err != nil {
+			handleStorageError(c, err, logger, requestID)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "restored"})
+	}
+}
+
+func StorageTrashDeleteHandler(storage *services.StorageService, logger *logrus.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetString("request_id")
+		id := c.Param("id")
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+			return
+		}
+		if err := storage.DeleteFromTrash(filepath.ToSlash(id)); err != nil {
+			handleStorageError(c, err, logger, requestID)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	}
+}
+
+func StorageRenameHandler(storage *services.StorageService, logger *logrus.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetString("request_id")
+		var req renameRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			return
+		}
+		if err := storage.Rename(req.OldPath, req.NewName); err != nil {
+			handleStorageError(c, err, logger, requestID)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "renamed"})
 	}
 }

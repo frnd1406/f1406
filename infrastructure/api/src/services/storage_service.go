@@ -19,16 +19,28 @@ var ErrPathTraversal = errors.New("path escapes base directory")
 
 // StorageEntry represents a file or directory item within the storage root.
 type StorageEntry struct {
-	Name    string    `json:"name"`
-	Size    int64     `json:"size"`
-	IsDir   bool      `json:"isDir"`
-	ModTime time.Time `json:"modTime"`
+	Name     string    `json:"name"`
+	Size     int64     `json:"size"`
+	IsDir    bool      `json:"isDir"`
+	ModTime  time.Time `json:"modTime"`
+	MimeType string    `json:"mimeType,omitempty"`
+	IsImage  bool      `json:"isImage,omitempty"`
+}
+
+// TrashEntry represents a soft-deleted file.
+type TrashEntry struct {
+	ID           string    `json:"id"`           // bucket/relative/path
+	Name         string    `json:"name"`         // file name
+	OriginalPath string    `json:"originalPath"` // original relative path
+	Size         int64     `json:"size"`
+	ModTime      time.Time `json:"modTime"`
 }
 
 // StorageService provides basic file operations within a confined base directory.
 type StorageService struct {
-	basePath string
-	logger   *logrus.Logger
+	basePath  string
+	trashPath string
+	logger    *logrus.Logger
 }
 
 // NewStorageService initializes the service and ensures the base path exists.
@@ -46,9 +58,15 @@ func NewStorageService(basePath string, logger *logrus.Logger) (*StorageService,
 		return nil, fmt.Errorf("ensure base path: %w", err)
 	}
 
+	trash := filepath.Join(absBase, ".trash")
+	if err := os.MkdirAll(trash, 0o755); err != nil {
+		return nil, fmt.Errorf("ensure trash path: %w", err)
+	}
+
 	return &StorageService{
-		basePath: absBase,
-		logger:   logger,
+		basePath:  absBase,
+		trashPath: trash,
+		logger:    logger,
 	}, nil
 }
 
@@ -93,11 +111,22 @@ func (s *StorageService) List(relPath string) ([]StorageEntry, error) {
 			continue
 		}
 
+		mimeType := ""
+		isImage := false
+		if !info.IsDir() {
+			mimeType = mime.TypeByExtension(filepath.Ext(e.Name()))
+			if strings.HasPrefix(mimeType, "image/") {
+				isImage = true
+			}
+		}
+
 		items = append(items, StorageEntry{
-			Name:    e.Name(),
-			Size:    info.Size(),
-			IsDir:   info.IsDir(),
-			ModTime: info.ModTime(),
+			Name:     e.Name(),
+			Size:     info.Size(),
+			IsDir:    info.IsDir(),
+			ModTime:  info.ModTime(),
+			MimeType: mimeType,
+			IsImage:  isImage,
 		})
 	}
 
@@ -182,5 +211,113 @@ func (s *StorageService) Delete(relPath string) error {
 		return err
 	}
 
+	relClean := strings.TrimPrefix(filepath.Clean(relPath), string(os.PathSeparator))
+	bucket := time.Now().UTC().Format("20060102T150405Z")
+	destRel := filepath.Join(bucket, relClean)
+	destAbs := filepath.Join(s.trashPath, destRel)
+
+	if err := os.MkdirAll(filepath.Dir(destAbs), 0o755); err != nil {
+		return fmt.Errorf("create trash dir: %w", err)
+	}
+
+	if err := os.Rename(target, destAbs); err != nil {
+		return fmt.Errorf("move to trash: %w", err)
+	}
+	return nil
+}
+
+// ListTrash lists all soft-deleted files.
+func (s *StorageService) ListTrash() ([]TrashEntry, error) {
+	var entries []TrashEntry
+	err := filepath.Walk(s.trashPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(s.trashPath, path)
+		if err != nil {
+			return nil
+		}
+		parts := strings.SplitN(rel, string(os.PathSeparator), 2)
+		original := ""
+		if len(parts) == 2 {
+			original = parts[1]
+		}
+		entries = append(entries, TrashEntry{
+			ID:           filepath.ToSlash(rel),
+			Name:         info.Name(),
+			OriginalPath: filepath.ToSlash(original),
+			Size:         info.Size(),
+			ModTime:      info.ModTime(),
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+// RestoreFromTrash moves a file from trash back to its original location.
+func (s *StorageService) RestoreFromTrash(id string) error {
+	if id == "" {
+		return fmt.Errorf("invalid trash id")
+	}
+	source := filepath.Join(s.trashPath, filepath.FromSlash(id))
+	if _, err := os.Stat(source); err != nil {
+		return err
+	}
+
+	parts := strings.SplitN(id, "/", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return fmt.Errorf("missing original path info")
+	}
+	originalRel := parts[1]
+	dest, err := s.sanitizePath(originalRel)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(source, dest)
+}
+
+// DeleteFromTrash removes a trashed file permanently.
+func (s *StorageService) DeleteFromTrash(id string) error {
+	if id == "" {
+		return fmt.Errorf("invalid trash id")
+	}
+	target := filepath.Join(s.trashPath, filepath.FromSlash(id))
+	if !strings.HasPrefix(target, s.trashPath) {
+		return ErrPathTraversal
+	}
 	return os.RemoveAll(target)
+}
+
+// Rename renames a file within the same directory.
+func (s *StorageService) Rename(oldRel, newName string) error {
+	if newName == "" {
+		return fmt.Errorf("new name required")
+	}
+	oldAbs, err := s.sanitizePath(oldRel)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(oldAbs)
+	if err != nil {
+		return err
+	}
+	dir := filepath.Dir(oldAbs)
+	newAbs := filepath.Join(dir, filepath.Base(newName))
+	if newAbs == oldAbs {
+		return nil
+	}
+	if info.IsDir() {
+		return os.Rename(oldAbs, newAbs)
+	}
+	return os.Rename(oldAbs, newAbs)
 }

@@ -71,12 +71,15 @@ git commit -m "$COMMIT_MSG"
 CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
 if [ ! -z "$CURRENT_REMOTE" ]; then
     echo ""
+    git pull origin "$CURRENT_BRANCH"
+    
     echo -e "${YELLOW}Lade hoch zu GitHub (Push)...${NC}"
     
     # Versuche Push. Wenn Branch noch nicht upstream ist, setze upstream.
     CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
     git push -u origin "$CURRENT_BRANCH"
     
+
     if [ $? -eq 0 ]; then
         echo ""
         echo -e "${GREEN}✅ Savepoint '$COMMIT_MSG' erfolgreich gespeichert und hochgeladen!${NC}"

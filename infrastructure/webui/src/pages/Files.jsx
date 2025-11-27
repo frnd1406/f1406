@@ -137,7 +137,10 @@ export default function Files() {
         throw new Error(`HTTP ${res.status}: Failed to load files`);
       }
       const data = await res.json();
-      setFiles(data.items || []);
+
+      // Filter out .trash directory from the list
+      const filteredFiles = (data.items || []).filter(item => item.name !== ".trash");
+      setFiles(filteredFiles);
     } catch (err) {
       setError(err.message || "Unknown error");
     } finally {
@@ -231,6 +234,12 @@ export default function Files() {
   };
 
   const handleDelete = async (item) => {
+    // Prevent deletion of .trash directory
+    if (item.name === ".trash") {
+      setError("Der Papierkorb kann nicht gelöscht werden");
+      return;
+    }
+
     if (!window.confirm(`"${item.name}" wirklich löschen?`)) return;
 
     const target = joinPath(path, item.name);

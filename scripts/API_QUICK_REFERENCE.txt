@@ -1,0 +1,58 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                  NAS.AI API QUICK REFERENCE                        ║
+╚════════════════════════════════════════════════════════════════════╝
+
+PUBLIC ENDPOINTS (No Auth):
+  GET  /health                         - Health Check
+  GET  /api/v1/system/metrics          - System Metrics
+  GET  /api/v1/system/alerts           - System Alerts
+  GET  /api/v1/auth/csrf               - Get CSRF Token
+
+AUTH ENDPOINTS:
+  POST /auth/register                  - Register User
+  POST /auth/login                     - Login
+  POST /auth/logout                    - Logout (requires auth)
+  POST /auth/refresh                   - Refresh Token
+
+SYSTEM SETTINGS (Auth Required):
+  GET  /api/v1/system/settings         - Get Settings
+  PUT  /api/v1/system/settings/backup  - Update Backup Settings
+
+BACKUPS (Auth Required):
+  GET    /api/v1/backups               - List Backups
+  POST   /api/v1/backups               - Create Backup
+  POST   /api/v1/backups/:id/restore   - Restore Backup
+  DELETE /api/v1/backups/:id           - Delete Backup
+
+STORAGE (Auth Required):
+  GET    /api/v1/storage/files?path=/  - List Files
+  POST   /api/v1/storage/upload        - Upload File
+  GET    /api/v1/storage/download      - Download File
+  POST   /api/v1/storage/rename        - Rename File
+  DELETE /api/v1/storage/delete        - Delete File (to trash)
+  GET    /api/v1/storage/trash         - List Trash
+  POST   /api/v1/storage/trash/restore/:id  - Restore from Trash
+  DELETE /api/v1/storage/trash/:id     - Delete Permanently
+
+─────────────────────────────────────────────────────────────────────
+
+TESTING:
+  # Run all tests
+  ./scripts/test-api-endpoints.sh
+
+  # Verbose mode
+  VERBOSE=true ./scripts/test-api-endpoints.sh
+
+  # With authentication
+  JWT_TOKEN='your-token' CSRF_TOKEN='csrf' ./scripts/test-api-endpoints.sh
+
+ADDING NEW ENDPOINTS:
+  ./scripts/add-api-endpoint.sh
+
+REBUILD API:
+  cd /home/freun/Agent/infrastructure/api
+  docker build --no-cache -t nas-api:1.0.0 .
+  cd /home/freun/Agent/infrastructure
+  docker compose --env-file .env.prod -f docker-compose.prod.yml up -d api
+
+─────────────────────────────────────────────────────────────────────

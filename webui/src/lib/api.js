@@ -16,6 +16,7 @@ function normalizeBaseUrl(url) {
 }
 
 const API_BASE_URL = normalizeBaseUrl(envBaseUrl)
+const LOGOUT_COUNTDOWN_SECONDS = 4
 
 function buildUrl(path = '') {
   if (!path.startsWith('/')) {
@@ -28,29 +29,222 @@ export function getApiBaseUrl() {
   return API_BASE_URL
 }
 
-export async function apiRequest(path, options = {}) {
-  const accessToken = localStorage.getItem('accessToken')
+let logoutOverlay
+let logoutCountdownInterval
+let logoutRedirectScheduled = false
+
+function ensureLogoutStyles() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('session-warning-styles')) return
+
+  const style = document.createElement('style')
+  style.id = 'session-warning-styles'
+  style.textContent = `
+    .session-warning-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(12px);
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    .session-warning-overlay.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .session-warning-card {
+      max-width: 420px;
+      width: 90%;
+      padding: 24px 26px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(127,29,29,0.35));
+      border: 1px solid rgba(248,113,113,0.55);
+      box-shadow: 0 20px 70px rgba(239,68,68,0.35);
+      color: #fff;
+      backdrop-filter: blur(18px);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .session-warning-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(248,113,113,0.28);
+      border: 1px solid rgba(248,113,113,0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .session-warning-title {
+      margin: 14px 0 6px 0;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+    .session-warning-body {
+      margin: 0 0 12px 0;
+      color: rgba(255,255,255,0.9);
+      line-height: 1.4;
+      font-size: 15px;
+    }
+    .session-warning-timer {
+      font-weight: 800;
+      font-size: 17px;
+      color: #fecdd3;
+    }
+    .session-warning-subtle {
+      margin: 0;
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+    }
+  `
+
+  document.head.appendChild(style)
+}
+
+function showLogoutOverlay(seconds) {
+  if (typeof document === 'undefined') return
+  ensureLogoutStyles()
+
+  if (!logoutOverlay) {
+    logoutOverlay = document.createElement('div')
+    logoutOverlay.className = 'session-warning-overlay'
+    logoutOverlay.innerHTML = `
+      <div class="session-warning-card">
+        <div class="session-warning-pill">Warnung · Session läuft ab</div>
+        <div class="session-warning-title">Gleich wirst du abgemeldet</div>
+        <p class="session-warning-body">
+          Wir konnten deinen Token nicht erneuern. Du wirst in
+          <span class="session-warning-timer" data-session-timer></span>
+          abgemeldet.
+        </p>
+        <p class="session-warning-subtle">Bitte melde dich erneut an, um weiterzuarbeiten.</p>
+      </div>
+    `
+    document.body.appendChild(logoutOverlay)
+    // Trigger fade-in
+    requestAnimationFrame(() => {
+      logoutOverlay.classList.add('is-visible')
+    })
+  }
+
+  const timerEl = logoutOverlay.querySelector('[data-session-timer]')
+  if (!timerEl) return
+
+  let remaining = seconds
+  timerEl.textContent = `${remaining}s`
+
+  if (logoutCountdownInterval) {
+    clearInterval(logoutCountdownInterval)
+  }
+
+  logoutCountdownInterval = setInterval(() => {
+    remaining -= 1
+    if (remaining <= 0) {
+      clearInterval(logoutCountdownInterval)
+      return
+    }
+    timerEl.textContent = `${remaining}s`
+  }, 1000)
+}
+
+function clearAuth() {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('csrfToken')
+}
+
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken')
+  if (!refreshToken) return null
+
+  try {
+    const res = await fetch(buildUrl('/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+
+    if (!res.ok) {
+      return null
+    }
+
+    const data = await res.json().catch(() => null)
+    const newAccessToken = data?.access_token || data?.token
+
+    if (!newAccessToken) {
+      return null
+    }
+
+    localStorage.setItem('accessToken', newAccessToken)
+    if (data?.refresh_token) {
+      localStorage.setItem('refreshToken', data.refresh_token)
+    }
+    if (data?.csrf_token) {
+      localStorage.setItem('csrfToken', data.csrf_token)
+    }
+
+    return newAccessToken
+  } catch (err) {
+    return null
+  }
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined') {
+    clearAuth()
+    return
+  }
+
+  if (logoutRedirectScheduled) return
+  logoutRedirectScheduled = true
+
+  clearAuth()
+  showLogoutOverlay(LOGOUT_COUNTDOWN_SECONDS)
+
+  setTimeout(() => {
+    window.location.href = '/login'
+  }, LOGOUT_COUNTDOWN_SECONDS * 1000)
+}
+
+function buildHeaders(accessToken, headersOverride = {}) {
   const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...headersOverride,
   }
 
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`
   }
 
+  return headers
+}
+
+function extractErrorMessage(res, data) {
+  return data?.error?.message || data?.error || res.statusText || 'Request failed'
+}
+
+async function performRequest(path, options, tokenOverride) {
+  const accessToken = tokenOverride || localStorage.getItem('accessToken')
   let res
   try {
     res = await fetch(buildUrl(path), {
       ...options,
-      headers,
+      headers: buildHeaders(accessToken, options.headers),
     })
   } catch (err) {
     throw new Error(`Cannot reach API at ${API_BASE_URL} (${err.message})`)
   }
 
-  let data = null
   const isJson = res.headers.get('content-type')?.includes('application/json')
+  let data = null
 
   if (isJson) {
     try {
@@ -60,12 +254,44 @@ export async function apiRequest(path, options = {}) {
     }
   }
 
-  if (!res.ok) {
-    const message = data?.error?.message || data?.error || res.statusText || 'Request failed'
-    const error = new Error(message)
-    error.status = res.status
-    throw error
+  return { res, data }
+}
+
+export async function apiRequest(path, options = {}) {
+  const firstAttempt = await performRequest(path, options)
+
+  if (firstAttempt.res.ok) {
+    return firstAttempt.data
   }
 
-  return data
+  if (firstAttempt.res.status === 401) {
+    const newAccessToken = await refreshAccessToken()
+
+    if (newAccessToken) {
+      const retry = await performRequest(path, options, newAccessToken)
+
+      if (retry.res.ok) {
+        return retry.data
+      }
+
+      if (retry.res.status === 401) {
+        redirectToLogin()
+      }
+
+      const retryMessage = extractErrorMessage(retry.res, retry.data)
+      const retryError = new Error(retryMessage)
+      retryError.status = retry.res.status
+      throw retryError
+    }
+
+    redirectToLogin()
+    const refreshError = new Error('Session expired. Please log in again.')
+    refreshError.status = 401
+    throw refreshError
+  }
+
+  const message = extractErrorMessage(firstAttempt.res, firstAttempt.data)
+  const error = new Error(message)
+  error.status = firstAttempt.res.status
+  throw error
 }

@@ -238,14 +238,24 @@ export default function Backup() {
           )}
         </div>
 
-        <button
-          onClick={createBackup}
-          disabled={busy || loading}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/30"
-        >
-          {busy ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
-          <span>Neues Backup erstellen</span>
-        </button>
+        <div className="flex items-center gap-3 self-start">
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-all shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+            aria-label="Backup-Konfiguration"
+          >
+            <Settings size={18} />
+            <span className="hidden sm:inline font-medium">Konfiguration</span>
+          </button>
+          <button
+            onClick={createBackup}
+            disabled={busy || loading}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/30"
+          >
+            {busy ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+            <span>Neues Backup erstellen</span>
+          </button>
+        </div>
       </div>
 
       {/* Success Message */}
@@ -262,36 +272,9 @@ export default function Backup() {
         </div>
       )}
 
-      {/* Settings Button - Opens Modal */}
-      <GlassCard>
-        <div className="p-6">
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className="w-full flex items-center justify-between group hover:bg-white/5 p-3 rounded-xl transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-500/20 border border-violet-500/30 group-hover:bg-violet-500/30 transition-colors">
-                <Settings size={20} className="text-violet-400" />
-              </div>
-              <div className="text-left">
-                <h3 className="text-white font-semibold text-lg tracking-tight">
-                  Einstellungen & Zeitplan
-                </h3>
-                <p className="text-slate-400 text-xs mt-0.5">
-                  Konfigurieren Sie Ihre Backup-Strategie
-                </p>
-              </div>
-            </div>
-            <div className="text-slate-400 group-hover:text-white transition-colors">
-              <Settings size={18} className="opacity-50" />
-            </div>
-          </button>
-        </div>
-      </GlassCard>
-
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           {/* Modal Container */}
           <div className="w-full max-w-2xl animate-in zoom-in-95 duration-200">
             <GlassCard className="max-h-[90vh] overflow-y-auto">

@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -44,19 +45,15 @@ func (s *PasswordService) ValidatePasswordStrength(password string) error {
 		return fmt.Errorf("password must be at least 8 characters")
 	}
 
-	var (
-		hasUpper bool
-		hasLower bool
-		hasDigit bool
-	)
+	var hasUpper, hasLower, hasDigit bool
 
-	for _, r := range password {
+	for _, r := range password { // iterate runes to support unicode characters
 		switch {
-		case r >= 'A' && r <= 'Z':
+		case unicode.IsUpper(r):
 			hasUpper = true
-		case r >= 'a' && r <= 'z':
+		case unicode.IsLower(r):
 			hasLower = true
-		case r >= '0' && r <= '9':
+		case unicode.IsNumber(r):
 			hasDigit = true
 		}
 	}

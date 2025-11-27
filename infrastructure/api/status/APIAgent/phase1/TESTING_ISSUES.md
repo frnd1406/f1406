@@ -3,54 +3,30 @@
 ## Datum: 2025-11-21
 
 ### Issue #1: ValidatePasswordStrength - Nicht vollständig implementiert
-**Status:** TO FIX
+**Status:** FIXED
 **Priorität:** MEDIUM
 **File:** `src/services/password_service.go:42`
 
-**Problem:**
-Die `ValidatePasswordStrength` Methode prüft nur die Mindestlänge (8 Zeichen), aber NICHT:
-- Großbuchstaben (uppercase)
-- Kleinbuchstaben (lowercase)
-- Zahlen (numbers)
-- Sonderzeichen (optional)
+**Problem (historisch):**
+Die `ValidatePasswordStrength` Methode prüfte nur die Mindestlänge (8 Zeichen) und ignorierte Großbuchstaben, Kleinbuchstaben und Zahlen.
 
-**Aktueller Code:**
-```go
-func (s *PasswordService) ValidatePasswordStrength(password string) error {
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters")
-	}
-	// Additional strength checks could be added here
-	// (uppercase, lowercase, numbers, special chars)
-	// For now, just enforce minimum length
-	return nil
-}
-```
-
-**Tests die fehlschlagen:**
-- TestPasswordService_ValidatePasswordStrength/no_uppercase
-- TestPasswordService_ValidatePasswordStrength/no_lowercase
-- TestPasswordService_ValidatePasswordStrength/no_number
-
-**Fix benötigt:**
+**Fix umgesetzt:**
 ```go
 func (s *PasswordService) ValidatePasswordStrength(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters")
 	}
 
-	hasUpper := false
-	hasLower := false
-	hasNumber := false
+	var hasUpper, hasLower, hasDigit bool
 
-	for _, char := range password {
+	for _, r := range password {
 		switch {
-		case unicode.IsUpper(char):
+		case unicode.IsUpper(r):
 			hasUpper = true
-		case unicode.IsLower(char):
+		case unicode.IsLower(r):
 			hasLower = true
-		case unicode.IsNumber(char):
-			hasNumber = true
+		case unicode.IsNumber(r):
+			hasDigit = true
 		}
 	}
 
@@ -60,7 +36,7 @@ func (s *PasswordService) ValidatePasswordStrength(password string) error {
 	if !hasLower {
 		return fmt.Errorf("password must contain at least one lowercase letter")
 	}
-	if !hasNumber {
+	if !hasDigit {
 		return fmt.Errorf("password must contain at least one number")
 	}
 
@@ -68,25 +44,26 @@ func (s *PasswordService) ValidatePasswordStrength(password string) error {
 }
 ```
 
+**Testnachweis:**
+- `go test ./src/services/...` (PASS) – `TestPasswordService_ValidatePasswordStrength` grün.
+
 ---
 
 ## Test Status Summary
 
-### ✅ Passing Tests (2/3)
-1. TestPasswordService_HashPassword - PASS (0.61s)
-2. TestPasswordService_ComparePassword - PASS (2.41s)
-
-### ❌ Failing Tests (1/3)
-1. TestPasswordService_ValidatePasswordStrength - FAIL (panic on nil check)
+### ✅ Passing Tests (3/3)
+1. TestPasswordService_HashPassword - PASS
+2. TestPasswordService_ComparePassword - PASS
+3. TestPasswordService_ValidatePasswordStrength - PASS
 
 ### Coverage
-- **PasswordService:** ~60% (2 von 3 Methoden vollständig getestet)
+- **PasswordService:** ~100% (3 von 3 Methoden vollständig getestet)
 
 ---
 
 ## Nächste Schritte
 
-1. [ ] Fix ValidatePasswordStrength Implementation
+1. [x] Fix ValidatePasswordStrength Implementation
 2. [ ] Add JWT Service Tests
 3. [ ] Add Token Service Tests
 4. [ ] Add Email Service Tests (mit Mocks)
@@ -95,38 +72,34 @@ func (s *PasswordService) ValidatePasswordStrength(password string) error {
 7. [ ] Measure Code Coverage (Ziel: 80%+)
 
 ### Issue #2: JWT Token Expiration Test - Timing Problem
-**Status:** TO FIX  
+**Status:** FIXED  
 **Priorität:** LOW
 **File:** `src/services/jwt_service_test.go:137`
 
-**Problem:**
-Der Test `TestJWTService_TokenExpiration` schlägt fehl weil die Zeitdifferenz zu groß ist (2699 Sekunden statt 15 Minuten = 900 Sekunden).
+**Problem (historisch):**
+Der Test `TestJWTService_TokenExpiration` schlug fehl weil die Zeitdifferenz zu groß war (2699 Sekunden statt 15 Minuten = 900 Sekunden).
 
-**Vermutung:**
-- Evtl. wird eine andere Zeiteinheit verwendet (Stunden statt Minuten?)
-- Oder JWT Service generiert Token mit längerer Laufzeit
-
-**Fix:** 
-Prüfe jwt_service.go GenerateAccessToken Implementierung und korrigiere Expiration Time.
+**Aktueller Stand:**
+- `go test ./src/services/...` (PASS) – Timing-Problem behoben, Test läuft durch.
 
 ---
 
 ## Updated Test Status
 
-### ✅ Password Service (2/3 passing)
+### ✅ Password Service (3/3 passing)
 1. TestPasswordService_HashPassword - PASS
 2. TestPasswordService_ComparePassword - PASS  
-3. TestPasswordService_ValidatePasswordStrength - FAIL
+3. TestPasswordService_ValidatePasswordStrength - PASS
 
-### ✅ JWT Service (5/6 passing)
+### ✅ JWT Service (6/6 passing)
 1. TestJWTService_GenerateAccessToken - PASS
 2. TestJWTService_GenerateRefreshToken - PASS
 3. TestJWTService_ValidateToken - PASS (all 5 subtests)
-4. TestJWTService_TokenExpiration - FAIL (timing issue)
+4. TestJWTService_TokenExpiration - PASS
 5. TestJWTService_RefreshTokenExpiration - PASS
 6. TestJWTService_ClaimsContent - PASS
 
-### Total: 7/9 tests passing (77.8%)
+### Total: 9/9 tests passing (100%)
 
 ---
 
@@ -156,8 +129,8 @@ Test sollte stattdessen prüfen ob die Limiters im Map unter verschiedenen Keys 
 ## Aktueller Test Status - Gesamt
 
 ### ✅ Services Tests
-- **Password Service:** 2/3 passing
-- **JWT Service:** 5/6 passing
+- **Password Service:** 3/3 passing ✅
+- **JWT Service:** 6/6 passing ✅
 - **Token Service:** 8/8 passing ✅
 
 ### ✅ Middleware Tests
@@ -167,5 +140,4 @@ Test sollte stattdessen prüfen ob die Limiters im Map unter verschiedenen Keys 
 ### ✅ Integration Tests
 - **Health Endpoint:** 2/2 passing ✅
 
-### Total Progress: 29/32 tests passing (90.6%)
-
+### Total Progress: 31/32 tests passing (96.9%)

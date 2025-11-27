@@ -10,10 +10,8 @@ import {
   MemoryStick,
   Clock,
   Archive,
-  ArrowRight,
   Server,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -31,11 +29,11 @@ const GlassCard = ({ children, className = "" }) => (
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
-  const [backupStatus, setBackupStatus] = useState(null);
   const [lastBackup, setLastBackup] = useState(null);
   const [settings, setSettings] = useState(null);
   const [latestMetric, setLatestMetric] = useState(null);
   const [metricsError, setMetricsError] = useState("");
+  const [snapshotCount, setSnapshotCount] = useState(0);
 
   // Load Backup Info
   const loadBackupStatus = async () => {
@@ -50,7 +48,7 @@ export default function Dashboard() {
         setSettings(settingsData);
       }
 
-      // Load Last Backup
+      // Load Last Backup & Count
       const backupsRes = await fetch(`${API_BASE}/api/v1/backups`, {
         credentials: "include",
         headers: authHeaders(),
@@ -58,6 +56,8 @@ export default function Dashboard() {
       if (backupsRes.ok) {
         const backupsData = await backupsRes.json();
         const backups = backupsData.items || [];
+        setSnapshotCount(backups.length);
+
         if (backups.length > 0) {
           // Sort by date and get the most recent
           const sorted = backups.sort((a, b) =>
@@ -146,10 +146,6 @@ export default function Dashboard() {
 
   const isBackupActive = settings?.auto_backup_enabled ?? true;
   const formatPct = (v) => (typeof v === "number" ? `${Math.round(v)}%` : "—");
-  const metricTime =
-    latestMetric && (latestMetric.created_at || latestMetric.createdAt)
-      ? new Date(latestMetric.created_at || latestMetric.createdAt).toLocaleTimeString()
-      : null;
 
   return (
     <div className="space-y-6">
@@ -157,19 +153,114 @@ export default function Dashboard() {
       {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold text-white tracking-tight">
-          Dashboard Übersicht
+          Dashboard
         </h1>
         <p className="text-slate-400 mt-2 text-sm">
-          Willkommen zurück. Hier ist der aktuelle Status Ihres Systems.
+          Systemübersicht und Status
         </p>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Main Grid - 3 Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Data Security Card */}
+        {/* 1. System Ressourcen Card (Größer - Spans 2 columns on large screens) */}
+        <GlassCard className="lg:col-span-2 hover:bg-blue-500/5 transition-colors">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-500/20 border border-blue-500/30">
+                <Server size={24} className="text-blue-400" />
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase tracking-wider">System Ressourcen</p>
+                <p className="text-lg font-semibold text-white mt-0.5">Hardware Status</p>
+              </div>
+            </div>
+
+            {/* Live Indicator */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+              <span className="text-emerald-400 text-xs font-medium uppercase tracking-wider">Live</span>
+            </div>
+          </div>
+
+          {/* CPU, RAM, Storage - Clean Bars without timestamps */}
+          <div className="space-y-4 flex-1">
+
+            {/* CPU */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/20">
+                    <Cpu size={20} className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium">CPU Auslastung</p>
+                    <p className="text-xs text-slate-500">Prozessor</p>
+                  </div>
+                </div>
+                <p className="text-white font-mono text-2xl font-bold">{formatPct(latestMetric?.cpu_usage)}</p>
+              </div>
+              {/* Progress Bar */}
+              <div className="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-500 rounded-full"
+                  style={{ width: `${latestMetric?.cpu_usage || 0}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* RAM */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-violet-500/20">
+                    <MemoryStick size={20} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium">Arbeitsspeicher</p>
+                    <p className="text-xs text-slate-500">RAM</p>
+                  </div>
+                </div>
+                <p className="text-white font-mono text-2xl font-bold">{formatPct(latestMetric?.ram_usage)}</p>
+              </div>
+              {/* Progress Bar */}
+              <div className="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500 rounded-full"
+                  style={{ width: `${latestMetric?.ram_usage || 0}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Storage */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/20">
+                    <HardDrive size={20} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium">Speicher</p>
+                    <p className="text-xs text-slate-500">Disk Space</p>
+                  </div>
+                </div>
+                <p className="text-white font-mono text-2xl font-bold">{formatPct(latestMetric?.disk_usage)}</p>
+              </div>
+              {/* Progress Bar */}
+              <div className="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-500 rounded-full"
+                  style={{ width: `${latestMetric?.disk_usage || 0}%` }}
+                ></div>
+              </div>
+            </div>
+
+          </div>
+        </GlassCard>
+
+        {/* 2. Security & Backup Card (Combined with Snapshots) */}
         <GlassCard className={`${isBackupActive ? 'hover:bg-emerald-500/5' : 'hover:bg-slate-500/5'} transition-colors`}>
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between mb-4">
             <div className={`p-3 rounded-xl ${isBackupActive ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-slate-700/50 border-slate-500/30'} border`}>
               {isBackupActive ? (
                 <ShieldCheck size={24} className="text-emerald-400" />
@@ -182,243 +273,76 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="mt-4 flex-1">
-            <p className="text-slate-400 text-xs uppercase tracking-wider">Datensicherheit</p>
-            <p className={`text-2xl font-bold mt-2 ${isBackupActive ? 'text-emerald-400' : 'text-slate-400'}`}>
-              {isBackupActive ? 'Auto-Backup' : 'Manuell'}
-            </p>
-
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center gap-2 text-xs">
-                <Clock size={12} className={isBackupActive ? 'text-emerald-400' : 'text-slate-500'} />
-                <span className="text-slate-300">
-                  Nächster Lauf: <span className={isBackupActive ? 'text-emerald-400 font-medium' : 'text-slate-400'}>{getNextBackupTime()}</span>
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs">
-                <Archive size={12} className="text-blue-400" />
-                <span className="text-slate-300">
-                  Letzter Snapshot: <span className="text-blue-400 font-medium">{formatLastBackupTime()}</span>
-                </span>
-              </div>
+          <div className="flex-1 space-y-4">
+            <div>
+              <p className="text-slate-400 text-xs uppercase tracking-wider">Datensicherheit</p>
+              <p className={`text-2xl font-bold mt-2 ${isBackupActive ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {isBackupActive ? 'Auto-Backup' : 'Manuell'}
+              </p>
             </div>
-          </div>
 
-          {/* Quick Link to Backup Page */}
-          <Link
-            to="/backups"
-            className="mt-4 flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
-          >
-            <span className="text-xs text-slate-400 group-hover:text-white">Backup verwalten</span>
-            <ArrowRight size={14} className="text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
-          </Link>
-        </GlassCard>
-
-        {/* System Resources Card */}
-        <GlassCard className="hover:bg-blue-500/5 transition-colors">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-blue-500/20 border border-blue-500/30">
-                <Server size={24} className="text-blue-400" />
+            {/* Backup Schedule */}
+            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock size={14} className={isBackupActive ? 'text-emerald-400' : 'text-slate-500'} />
+                <span className="text-slate-400 text-xs font-medium">Nächster Lauf</span>
               </div>
-              <div>
-                <p className="text-slate-400 text-xs uppercase tracking-wider">System Ressourcen</p>
-                <p className="text-lg font-semibold text-white mt-0.5">Hardware Status</p>
-              </div>
+              <p className={`text-sm font-semibold ${isBackupActive ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {getNextBackupTime()}
+              </p>
             </div>
-          </div>
 
-          {/* CPU, RAM, Storage in einem Container */}
-          <div className="space-y-3 flex-1">
+            {/* Last Snapshot */}
+            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Archive size={14} className="text-blue-400" />
+                <span className="text-slate-400 text-xs font-medium">Letzter Snapshot</span>
+              </div>
+              <p className="text-sm font-semibold text-blue-400">
+                {formatLastBackupTime()}
+              </p>
+            </div>
 
-            {/* CPU */}
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+            {/* Snapshot Count */}
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-cyan-500/20">
-                    <Cpu size={18} className="text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-300 text-sm font-medium">CPU Auslastung</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Prozessor</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-mono text-lg font-bold">{formatPct(latestMetric?.cpu_usage)}</p>
-                  <p className="text-xs text-slate-500">
-                    {metricTime ? `Zuletzt: ${metricTime}` : metricsError || "Wartet auf Daten"}
-                  </p>
-                </div>
+                <span className="text-slate-400 text-xs font-medium">Gespeicherte Snapshots</span>
+                <span className="text-blue-400 font-bold text-lg">{snapshotCount}</span>
               </div>
-            </div>
-
-            {/* RAM */}
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-violet-500/20">
-                    <MemoryStick size={18} className="text-violet-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-300 text-sm font-medium">Arbeitsspeicher</p>
-                    <p className="text-xs text-slate-500 mt-0.5">RAM</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-mono text-lg font-bold">{formatPct(latestMetric?.ram_usage)}</p>
-                  <p className="text-xs text-slate-500">
-                    {metricTime ? `Zuletzt: ${metricTime}` : metricsError || "Wartet auf Daten"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Storage */}
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/20">
-                    <HardDrive size={18} className="text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-300 text-sm font-medium">Speicher</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Disk Space</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-mono text-lg font-bold">{formatPct(latestMetric?.disk_usage)}</p>
-                  <p className="text-xs text-slate-500">
-                    {metricTime ? `Zuletzt: ${metricTime}` : metricsError || "Wartet auf Daten"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </GlassCard>
-
-      </div>
-
-      {/* Second Row - System Health & Snapshots */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* System Health Card */}
-        <GlassCard className="hover:bg-emerald-500/5 transition-colors">
-          <div className="flex items-start justify-between">
-            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
-              <Activity size={24} className="text-emerald-400" />
-            </div>
-          </div>
-
-          <div className="mt-4 flex-1">
-            <p className="text-slate-400 text-xs uppercase tracking-wider">System Status</p>
-            <p className="text-2xl font-bold text-emerald-400 mt-2">Online</p>
-            <p className="text-slate-500 text-xs mt-1">Alle Dienste laufen</p>
-          </div>
-
-          <Link
-            to="/metrics"
-            className="mt-4 flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
-          >
-            <span className="text-xs text-slate-400 group-hover:text-white">Metriken anzeigen</span>
-            <ArrowRight size={14} className="text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
-          </Link>
-        </GlassCard>
-
-        {/* Backup Count Card */}
-        <GlassCard className="hover:bg-blue-500/5 transition-colors">
-          <div className="flex items-start justify-between">
-            <div className="p-3 rounded-xl bg-blue-500/20 border border-blue-500/30">
-              <Archive size={24} className="text-blue-400" />
-            </div>
-          </div>
-
-          <div className="mt-4 flex-1">
-            <p className="text-slate-400 text-xs uppercase tracking-wider">Snapshots</p>
-            {loading ? (
-              <div className="mt-2 flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin text-slate-400" />
-                <span className="text-slate-400 text-sm">Laden...</span>
-              </div>
-            ) : (
-              <>
-                <p className="text-2xl font-bold text-white mt-2">
-                  {lastBackup ? '1+' : '0'}
-                </p>
+              {settings?.backup_retention && (
                 <p className="text-slate-500 text-xs mt-1">
-                  {settings?.backup_retention ? `${settings.backup_retention} Tage Aufbewahrung` : 'Keine Retention konfiguriert'}
+                  {settings.backup_retention} Tage Aufbewahrung
                 </p>
-              </>
-            )}
+              )}
+            </div>
           </div>
-
-          <Link
-            to="/backups"
-            className="mt-4 flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
-          >
-            <span className="text-xs text-slate-400 group-hover:text-white">Details anzeigen</span>
-            <ArrowRight size={14} className="text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
-          </Link>
         </GlassCard>
 
       </div>
 
-      {/* Quick Actions */}
-      <GlassCard>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-white font-semibold text-lg tracking-tight">Schnellzugriff</h3>
-            <p className="text-slate-400 text-xs mt-1">Häufig verwendete Funktionen</p>
+      {/* 3. System Health Card (Full Width Below) */}
+      <GlassCard className="hover:bg-emerald-500/5 transition-colors">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+              <Activity size={28} className="text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">System Status</p>
+              <p className="text-3xl font-bold text-emerald-400">Online</p>
+              <p className="text-slate-500 text-sm mt-1">Alle Dienste laufen stabil</p>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            to="/files"
-            className="p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-blue-500/30 transition-all group"
-          >
-            <HardDrive size={20} className="text-blue-400 mb-2" />
-            <p className="text-white font-medium text-sm">Dateien verwalten</p>
-            <p className="text-slate-400 text-xs mt-1">Upload, Download & Organisation</p>
-          </Link>
-
-          <Link
-            to="/backups"
-            className="p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-emerald-500/30 transition-all group"
-          >
-            <Archive size={20} className="text-emerald-400 mb-2" />
-            <p className="text-white font-medium text-sm">Backups erstellen</p>
-            <p className="text-slate-400 text-xs mt-1">System-Snapshots & Recovery</p>
-          </Link>
-
-          <Link
-            to="/metrics"
-            className="p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-violet-500/30 transition-all group"
-          >
-            <Activity size={20} className="text-violet-400 mb-2" />
-            <p className="text-white font-medium text-sm">System-Metriken</p>
-            <p className="text-slate-400 text-xs mt-1">Alerts & Monitoring</p>
-          </Link>
+          {/* Uptime Indicator */}
+          <div className="text-right">
+            <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Verfügbarkeit</p>
+            <p className="text-2xl font-bold text-white">99.9%</p>
+            <p className="text-slate-500 text-xs mt-1">Letzte 30 Tage</p>
+          </div>
         </div>
       </GlassCard>
 
-      {/* System Info Footer */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-500/20 rounded-lg">
-            <Activity size={16} className="text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-white">System läuft stabil</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {isBackupActive
-                ? `Automatische Backups aktiv · Nächster Lauf: ${getNextBackupTime()}`
-                : 'Automatische Backups deaktiviert · Manueller Modus aktiv'}
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

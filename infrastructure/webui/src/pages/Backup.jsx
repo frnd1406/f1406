@@ -77,11 +77,21 @@ export default function Backup() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      // Setze die geladenen Einstellungen
-      if (data.backup_schedule) setBackupSchedule(data.backup_schedule);
-      if (data.backup_retention !== undefined) setRetentionDays(data.backup_retention);
-      if (data.backup_path) setBackupPath(data.backup_path);
-      if (data.auto_backup_enabled !== undefined) setAutoBackupEnabled(data.auto_backup_enabled);
+      // API gibt { backup: { schedule, retention, path } } zurück
+      if (data.backup) {
+        // Konvertiere Cron-Format "0 3 * * *" zu "HH:MM" Format
+        if (data.backup.schedule) {
+          const cronParts = data.backup.schedule.split(' ');
+          if (cronParts.length >= 2) {
+            const minutes = cronParts[0].padStart(2, '0');
+            const hours = cronParts[1].padStart(2, '0');
+            setBackupSchedule(`${hours}:${minutes}`);
+          }
+        }
+
+        if (data.backup.retention !== undefined) setRetentionDays(data.backup.retention);
+        if (data.backup.path) setBackupPath(data.backup.path);
+      }
     } catch (err) {
       console.error("Fehler beim Laden der Einstellungen:", err);
       // Fehlermeldung nicht anzeigen, da Einstellungen optional sind
@@ -101,6 +111,10 @@ export default function Backup() {
     setSuccessMessage("");
 
     try {
+      // Convert HH:MM to cron format (0 H * * *)
+      const [hours, minutes] = backupSchedule.split(':');
+      const cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * *`;
+
       const res = await fetch(`${API_BASE}/api/v1/system/settings/backup`, {
         method: "PUT",
         credentials: "include",
@@ -109,14 +123,16 @@ export default function Backup() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          backup_schedule: backupSchedule,
-          backup_retention: retentionDays,
-          backup_path: backupPath,
-          auto_backup_enabled: autoBackupEnabled,
+          schedule: cronSchedule,        // API erwartet "schedule" im Cron-Format
+          retention: retentionDays,      // API erwartet "retention"
+          path: backupPath,              // API erwartet "path"
         }),
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${res.status}`);
+      }
 
       setSuccessMessage(`✓ Einstellungen gespeichert! Nächstes Backup um ${backupSchedule} Uhr`);
       setTimeout(() => setSuccessMessage(""), 5000);

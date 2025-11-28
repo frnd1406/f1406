@@ -22,6 +22,10 @@ type BackupSettingsRequest struct {
 	Path      string `json:"path" binding:"required"`
 }
 
+type ValidatePathRequest struct {
+	Path string `json:"path" binding:"required"`
+}
+
 func SystemSettingsHandler(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -31,6 +35,72 @@ func SystemSettingsHandler(cfg *config.Config) gin.HandlerFunc {
 				"path":      cfg.BackupStoragePath,
 			},
 		})
+	}
+}
+
+// ValidatePathHandler checks if a path is absolute, exists, and is writable by creating a temp file.
+func ValidatePathHandler(logger *logrus.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req ValidatePathRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			return
+		}
+
+		path := filepath.Clean(strings.TrimSpace(req.Path))
+		response := gin.H{
+			"valid":    false,
+			"exists":   false,
+			"writable": false,
+			"message":  "",
+		}
+
+		if path == "" {
+			response["message"] = "path is required"
+			c.JSON(http.StatusOK, response)
+			return
+		}
+		if !filepath.IsAbs(path) {
+			response["message"] = "path must be absolute"
+			c.JSON(http.StatusOK, response)
+			return
+		}
+
+		info, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				response["message"] = "path does not exist"
+			} else {
+				logger.WithError(err).Warn("validate path: stat failed")
+				response["message"] = "unable to read path metadata"
+			}
+			c.JSON(http.StatusOK, response)
+			return
+		}
+
+		response["exists"] = true
+
+		if !info.IsDir() {
+			response["message"] = "path must be a directory"
+			c.JSON(http.StatusOK, response)
+			return
+		}
+
+		tmp, err := os.CreateTemp(path, ".nas-path-check-*")
+		if err != nil {
+			logger.WithError(err).Warn("validate path: write check failed")
+			response["message"] = "path is not writable"
+			c.JSON(http.StatusOK, response)
+			return
+		}
+		tmp.Close()
+		os.Remove(tmp.Name())
+
+		response["writable"] = true
+		response["valid"] = true
+		response["message"] = "path is valid"
+
+		c.JSON(http.StatusOK, response)
 	}
 }
 

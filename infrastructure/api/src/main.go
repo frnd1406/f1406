@@ -242,6 +242,7 @@ func main() {
 	{
 		settingsV1.GET("/settings", handlers.SystemSettingsHandler(cfg))
 		settingsV1.PUT("/settings/backup", handlers.UpdateBackupSettingsHandler(cfg, backupService, settingsRepo, logger))
+		settingsV1.POST("/validate-path", handlers.ValidatePathHandler(logger))
 	}
 
 	storageV1 := r.Group("/api/v1/storage")

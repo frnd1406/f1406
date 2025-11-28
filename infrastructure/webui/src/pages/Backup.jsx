@@ -49,6 +49,12 @@ export default function Backup() {
   const [backupPath, setBackupPath] = useState("/mnt/backups");
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
 
+  // Smart Config State
+  const [backupFrequency, setBackupFrequency] = useState("daily"); // daily, weekly, cron
+  const [pathValidationStatus, setPathValidationStatus] = useState(null); // null, 'valid', 'warning', 'error'
+  const [pathValidationMessage, setPathValidationMessage] = useState("");
+  const [pathValidating, setPathValidating] = useState(false);
+
   const loadBackups = async () => {
     setLoading(true);
     setError("");
@@ -79,18 +85,32 @@ export default function Backup() {
 
       // API gibt { backup: { schedule, retention, path } } zurück
       if (data.backup) {
-        // Konvertiere Cron-Format "0 3 * * *" zu "HH:MM" Format
+        // Konvertiere Cron-Format "0 3 * * *" zu "HH:MM" Format und erkenne Frequenz
         if (data.backup.schedule) {
           const cronParts = data.backup.schedule.split(' ');
-          if (cronParts.length >= 2) {
+          if (cronParts.length >= 5) {
             const minutes = cronParts[0].padStart(2, '0');
             const hours = cronParts[1].padStart(2, '0');
+            const dayOfWeek = cronParts[4];
+
             setBackupSchedule(`${hours}:${minutes}`);
+
+            // Erkenne Frequenz aus Cron-String
+            if (dayOfWeek === '0' || dayOfWeek === '7') {
+              setBackupFrequency('weekly');
+            } else if (dayOfWeek === '*') {
+              setBackupFrequency('daily');
+            } else {
+              setBackupFrequency('cron');
+            }
           }
         }
 
         if (data.backup.retention !== undefined) setRetentionDays(data.backup.retention);
-        if (data.backup.path) setBackupPath(data.backup.path);
+        if (data.backup.path) {
+          setBackupPath(data.backup.path);
+          validatePath(data.backup.path); // Initial validation
+        }
       }
     } catch (err) {
       console.error("Fehler beim Laden der Einstellungen:", err);
@@ -99,6 +119,67 @@ export default function Backup() {
       setSettingsLoading(false);
     }
   };
+
+  // Path validation with debounce
+  const validatePath = async (path) => {
+    if (!path || path.trim() === '') {
+      setPathValidationStatus('error');
+      setPathValidationMessage('Pfad darf nicht leer sein');
+      return;
+    }
+
+    setPathValidating(true);
+    setPathValidationStatus(null);
+    setPathValidationMessage('');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/system/validate-path`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...authHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setPathValidationStatus('error');
+        setPathValidationMessage(data.error || 'Pfad-Validierung fehlgeschlagen');
+        return;
+      }
+
+      // Backend response: { exists: bool, writable: bool }
+      if (data.exists && data.writable) {
+        setPathValidationStatus('valid');
+        setPathValidationMessage('Pfad existiert und ist beschreibbar');
+      } else if (!data.exists) {
+        setPathValidationStatus('warning');
+        setPathValidationMessage('Pfad existiert nicht (wird bei Bedarf erstellt)');
+      } else if (!data.writable) {
+        setPathValidationStatus('error');
+        setPathValidationMessage('Pfad existiert, ist aber nicht beschreibbar');
+      }
+    } catch (err) {
+      setPathValidationStatus('error');
+      setPathValidationMessage('Verbindungsfehler bei Pfad-Validierung');
+    } finally {
+      setPathValidating(false);
+    }
+  };
+
+  // Debounced path validation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (backupPath && showSettingsModal) {
+        validatePath(backupPath);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [backupPath, showSettingsModal]);
 
   useEffect(() => {
     loadBackups();
@@ -111,9 +192,30 @@ export default function Backup() {
     setSuccessMessage("");
 
     try {
-      // Convert HH:MM to cron format (0 H * * *)
+      // Validate path before saving
+      if (pathValidationStatus === 'error') {
+        throw new Error('Bitte beheben Sie zuerst die Fehler beim Backup-Pfad');
+      }
+
+      // Convert HH:MM to cron format based on frequency
       const [hours, minutes] = backupSchedule.split(':');
-      const cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * *`;
+      let cronSchedule;
+
+      switch (backupFrequency) {
+        case 'daily':
+          cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * *`;
+          break;
+        case 'weekly':
+          // Sunday = 0 or 7 in cron
+          cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * 0`;
+          break;
+        case 'cron':
+          // For manual cron, user should provide full cron string (future feature)
+          cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * *`;
+          break;
+        default:
+          cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * *`;
+      }
 
       const res = await fetch(`${API_BASE}/api/v1/system/settings/backup`, {
         method: "PUT",
@@ -134,7 +236,8 @@ export default function Backup() {
         throw new Error(errorData.error || `HTTP ${res.status}`);
       }
 
-      setSuccessMessage(`✓ Einstellungen gespeichert! Nächstes Backup um ${backupSchedule} Uhr`);
+      const frequencyText = backupFrequency === 'daily' ? 'täglich' : 'sonntags';
+      setSuccessMessage(`✓ Einstellungen gespeichert! Nächstes Backup ${frequencyText} um ${backupSchedule} Uhr`);
       setTimeout(() => setSuccessMessage(""), 5000);
       setShowSettingsModal(false); // Close modal on success
     } catch (err) {
@@ -312,6 +415,28 @@ export default function Backup() {
                   </div>
                 ) : (
                   <div className="space-y-6">
+                    {/* Backup Frequency */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                        <Calendar size={16} className="text-blue-400" />
+                        Häufigkeit
+                      </label>
+                      <select
+                        value={backupFrequency}
+                        onChange={(e) => setBackupFrequency(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="daily">Täglich</option>
+                        <option value="weekly">Wöchentlich (Sonntags)</option>
+                        <option value="cron">Manuell (Erweitert)</option>
+                      </select>
+                      <p className="text-xs text-slate-500">
+                        {backupFrequency === 'daily' && 'Backup wird jeden Tag zur angegebenen Uhrzeit erstellt'}
+                        {backupFrequency === 'weekly' && 'Backup wird jeden Sonntag zur angegebenen Uhrzeit erstellt'}
+                        {backupFrequency === 'cron' && 'Erweiterte Cron-Konfiguration (derzeit als täglich behandelt)'}
+                      </p>
+                    </div>
+
                     {/* Schedule Time */}
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
@@ -325,16 +450,35 @@ export default function Backup() {
                         className="w-full md:w-64 px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
                       />
                       <p className="text-xs text-slate-500">
-                        Tägliches automatisches Backup zur angegebenen Uhrzeit
+                        Uhrzeit für das automatische Backup
                       </p>
                     </div>
 
                     {/* Retention Period */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
                         <Calendar size={16} className="text-blue-400" />
                         Aufbewahrungszeitraum
                       </label>
+
+                      {/* Preset Chips */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 mr-1">Presets:</span>
+                        {[7, 14, 30].map((days) => (
+                          <button
+                            key={days}
+                            onClick={() => setRetentionDays(days)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                              retentionDays === days
+                                ? 'bg-blue-500/20 text-blue-400 border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                                : 'bg-slate-800/50 text-slate-400 border-white/10 hover:bg-slate-800 hover:text-slate-300'
+                            }`}
+                          >
+                            {days} Tage
+                          </button>
+                        ))}
+                      </div>
+
                       <div className="flex items-center gap-4">
                         <input
                           type="range"
@@ -360,15 +504,56 @@ export default function Backup() {
                         <FolderOpen size={16} className="text-blue-400" />
                         Speicherort
                       </label>
-                      <input
-                        type="text"
-                        value={backupPath}
-                        onChange={(e) => setBackupPath(e.target.value)}
-                        placeholder="/mnt/backups"
-                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white font-mono focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={backupPath}
+                          onChange={(e) => setBackupPath(e.target.value)}
+                          placeholder="/mnt/backups"
+                          className={`w-full px-4 py-2.5 pr-10 bg-slate-800/50 border rounded-lg text-white font-mono focus:bg-slate-800 focus:outline-none transition-all ${
+                            pathValidationStatus === 'valid'
+                              ? 'border-emerald-500/50 focus:border-emerald-500/70'
+                              : pathValidationStatus === 'warning'
+                              ? 'border-amber-500/50 focus:border-amber-500/70'
+                              : pathValidationStatus === 'error'
+                              ? 'border-rose-500/50 focus:border-rose-500/70'
+                              : 'border-white/10 focus:border-blue-500/50'
+                          }`}
+                        />
+                        {/* Status Indicator */}
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {pathValidating ? (
+                            <Loader2 size={18} className="text-blue-400 animate-spin" />
+                          ) : pathValidationStatus === 'valid' ? (
+                            <CheckCircle size={18} className="text-emerald-400" />
+                          ) : pathValidationStatus === 'warning' ? (
+                            <AlertTriangle size={18} className="text-amber-400" />
+                          ) : pathValidationStatus === 'error' ? (
+                            <X size={18} className="text-rose-400" />
+                          ) : null}
+                        </div>
+                      </div>
+                      {/* Validation Message */}
+                      {pathValidationMessage && (
+                        <div className={`flex items-start gap-2 text-xs p-2 rounded-lg ${
+                          pathValidationStatus === 'valid'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : pathValidationStatus === 'warning'
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {pathValidationStatus === 'valid' ? (
+                            <CheckCircle size={14} className="shrink-0 mt-0.5" />
+                          ) : pathValidationStatus === 'warning' ? (
+                            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                          )}
+                          <span>{pathValidationMessage}</span>
+                        </div>
+                      )}
                       <p className="text-xs text-slate-500">
-                        Pfad zum Backup-Verzeichnis auf dem NAS
+                        Pfad zum Backup-Verzeichnis auf dem NAS (wird automatisch validiert)
                       </p>
                     </div>
 

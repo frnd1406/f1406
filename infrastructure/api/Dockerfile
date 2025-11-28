@@ -9,11 +9,11 @@ FROM alpine:3.19
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/bin/api /app/api
+# Create mount points; ownership set at runtime entrypoint
+RUN mkdir -p /mnt/data /mnt/backups
 
-# Create mount points with proper permissions for nobody user
-RUN mkdir -p /mnt/data /mnt/backups && \
-    chmod 777 /mnt/data /mnt/backups
+COPY src/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080
-USER nobody
-ENTRYPOINT ["/app/api"]
+ENTRYPOINT ["/entrypoint.sh"]

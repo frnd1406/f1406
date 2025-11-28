@@ -184,33 +184,43 @@ export default function Files() {
     loadTrash();
   }, []);
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
+  const handleUpload = async (filesToUpload = null) => {
+    // Use provided files or fall back to selectedFile
+    const files = filesToUpload || (selectedFile ? [selectedFile] : null);
+    if (!files || files.length === 0) return;
+
     setUploading(true);
     setError("");
-    const form = new FormData();
-    form.append("file", selectedFile);
-    form.append("path", path);
 
     try {
-      // WICHTIG: Für FormData NICHT Content-Type Header setzen!
-      // Browser setzt automatisch multipart/form-data mit boundary
-      const headers = authHeaders();
-      delete headers['Content-Type']; // Falls vorhanden, entfernen
+      // Upload each file sequentially
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const form = new FormData();
+        form.append("file", file);
+        form.append("path", path);
 
-      const res = await fetch(`${API_BASE}/api/v1/storage/upload`, {
-        method: "POST",
-        body: form,
-        credentials: "include",
-        headers: headers,
-      });
-      if (res.status === 401) {
-        setError("Authentifizierung fehlgeschlagen.");
-        return;
+        // WICHTIG: Für FormData NICHT Content-Type Header setzen!
+        // Browser setzt automatisch multipart/form-data mit boundary
+        const headers = authHeaders();
+        delete headers['Content-Type']; // Falls vorhanden, entfernen
+
+        const res = await fetch(`${API_BASE}/api/v1/storage/upload`, {
+          method: "POST",
+          body: form,
+          credentials: "include",
+          headers: headers,
+        });
+
+        if (res.status === 401) {
+          setError("Authentifizierung fehlgeschlagen.");
+          return;
+        }
+        if (!res.ok) {
+          throw new Error(`Upload failed for ${file.name}: HTTP ${res.status}`);
+        }
       }
-      if (!res.ok) {
-        throw new Error(`Upload failed: HTTP ${res.status}`);
-      }
+
       setSelectedFile(null);
       await loadFiles(path);
     } catch (err) {
@@ -424,41 +434,17 @@ export default function Files() {
     setIsDragging(false);
   };
 
-  const handleDrop = async (e) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      setSelectedFile(files[0]);
-      // Auto-upload after drop
-      setUploading(true);
-      setError("");
-      const form = new FormData();
-      form.append("file", files[0]);
-      form.append("path", path);
-
-      try {
-        const headers = authHeaders();
-        delete headers['Content-Type'];
-
-        const res = await fetch(`${API_BASE}/api/v1/storage/upload`, {
-          method: "POST",
-          body: form,
-          credentials: "include",
-          headers: headers,
-        });
-        if (!res.ok) {
-          throw new Error(`Upload failed: HTTP ${res.status}`);
-        }
-        setSelectedFile(null);
-        await loadFiles(path);
-      } catch (err) {
-        setError(err.message || "Unknown error");
-      } finally {
-        setUploading(false);
-      }
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      // Auto-upload all dropped files (fire and forget)
+      handleUpload(Array.from(droppedFiles)).catch(err => {
+        console.error('Upload error:', err);
+      });
     }
   };
 
@@ -626,11 +612,14 @@ export default function Files() {
       <input
         ref={fileInputRef}
         type="file"
+        multiple
         onChange={(e) => {
-          setSelectedFile(e.target.files?.[0] || null);
-          if (e.target.files?.[0]) {
-            handleUpload();
+          const files = e.target.files;
+          if (files && files.length > 0) {
+            handleUpload(Array.from(files));
           }
+          // Reset input so the same file can be selected again
+          e.target.value = '';
         }}
         className="hidden"
       />
@@ -775,11 +764,16 @@ export default function Files() {
         >
           {/* Drag & Drop Overlay */}
           {isDragging && (
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
-              <div className="p-12 rounded-2xl border-4 border-dashed border-blue-400 bg-blue-500/10">
-                <UploadCloud size={64} className="text-blue-400 mx-auto mb-4" />
-                <p className="text-2xl font-bold text-blue-400">Dateien hier ablegen</p>
-                <p className="text-slate-300 text-sm mt-2">Zum Hochladen loslassen</p>
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-md pointer-events-none animate-in fade-in duration-200">
+              <div className="p-16 rounded-3xl border-4 border-dashed border-blue-400 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 shadow-[0_0_60px_rgba(59,130,246,0.4)] transform scale-105 transition-transform">
+                <UploadCloud size={80} className="text-blue-400 mx-auto mb-6 animate-bounce" />
+                <p className="text-3xl font-bold text-blue-400 mb-2">Dateien hier ablegen</p>
+                <p className="text-slate-200 text-base">Mehrere Dateien gleichzeitig möglich</p>
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-400 animate-pulse"></div>
+                  <div className="w-3 h-3 rounded-full bg-blue-400 animate-pulse delay-75"></div>
+                  <div className="w-3 h-3 rounded-full bg-blue-400 animate-pulse delay-150"></div>
+                </div>
               </div>
             </div>
           )}
@@ -829,17 +823,17 @@ export default function Files() {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]"
-                    title="Upload File"
+                    title="Upload Files (Multiple)"
                   >
                     {uploading ? (
                       <>
                         <Loader2 size={16} className="animate-spin" />
-                        <span className="hidden sm:inline text-sm font-medium">Uploading...</span>
+                        <span className="hidden sm:inline text-sm font-medium">Hochladen...</span>
                       </>
                     ) : (
                       <>
                         <UploadCloud size={16} />
-                        <span className="hidden sm:inline text-sm font-medium">Upload</span>
+                        <span className="hidden sm:inline text-sm font-medium">Hochladen</span>
                       </>
                     )}
                   </button>

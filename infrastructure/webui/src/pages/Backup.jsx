@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { authHeaders } from "../utils/auth";
+import { apiRequest } from "../lib/api";
 import {
   Archive,
   Trash2,
@@ -16,10 +16,6 @@ import {
   CheckCircle,
   X,
 } from "lucide-react";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  window.location.origin;
 
 // Glass Card Component
 const GlassCard = ({ children, className = "" }) => (
@@ -59,12 +55,7 @@ export default function Backup() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/v1/backups`, {
-        credentials: "include",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await apiRequest("/api/v1/backups", { method: "GET" });
       setBackups(data.items || []);
     } catch (err) {
       setError(err.message || "Fehler beim Laden");
@@ -76,12 +67,7 @@ export default function Backup() {
   const loadSettings = async () => {
     setSettingsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/system/settings`, {
-        credentials: "include",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await apiRequest("/api/v1/system/settings", { method: "GET" });
 
       // API gibt { backup: { schedule, retention, path } } zurück
       if (data.backup) {
@@ -133,38 +119,34 @@ export default function Backup() {
     setPathValidationMessage('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/system/validate-path`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          ...authHeaders(),
-          'Content-Type': 'application/json',
-        },
+      const data = await apiRequest("/api/v1/system/validate-path", {
+        method: "POST",
         body: JSON.stringify({ path }),
       });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setPathValidationStatus('error');
-        setPathValidationMessage(data.error || 'Pfad-Validierung fehlgeschlagen');
+      if (data.valid) {
+        setPathValidationStatus('valid');
+        setPathValidationMessage(data.message || 'Pfad existiert und ist beschreibbar');
         return;
       }
 
-      // Backend response: { exists: bool, writable: bool }
-      if (data.exists && data.writable) {
-        setPathValidationStatus('valid');
-        setPathValidationMessage('Pfad existiert und ist beschreibbar');
-      } else if (!data.exists) {
+      if (!data.exists) {
         setPathValidationStatus('warning');
-        setPathValidationMessage('Pfad existiert nicht (wird bei Bedarf erstellt)');
-      } else if (!data.writable) {
-        setPathValidationStatus('error');
-        setPathValidationMessage('Pfad existiert, ist aber nicht beschreibbar');
+        setPathValidationMessage(data.message || 'Pfad existiert nicht (wird bei Bedarf erstellt)');
+        return;
       }
+
+      if (!data.writable) {
+        setPathValidationStatus('error');
+        setPathValidationMessage(data.message || 'Pfad existiert, ist aber nicht beschreibbar');
+        return;
+      }
+
+      setPathValidationStatus('error');
+      setPathValidationMessage(data.message || 'Pfad-Validierung fehlgeschlagen');
     } catch (err) {
       setPathValidationStatus('error');
-      setPathValidationMessage('Verbindungsfehler bei Pfad-Validierung');
+      setPathValidationMessage(err.message || 'Verbindungsfehler bei Pfad-Validierung');
     } finally {
       setPathValidating(false);
     }
@@ -217,24 +199,14 @@ export default function Backup() {
           cronSchedule = `${parseInt(minutes)} ${parseInt(hours)} * * *`;
       }
 
-      const res = await fetch(`${API_BASE}/api/v1/system/settings/backup`, {
+      await apiRequest("/api/v1/system/settings/backup", {
         method: "PUT",
-        credentials: "include",
-        headers: {
-          ...authHeaders(),
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           schedule: cronSchedule,        // API erwartet "schedule" im Cron-Format
           retention: retentionDays,      // API erwartet "retention"
           path: backupPath,              // API erwartet "path"
         }),
       });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${res.status}`);
-      }
 
       const frequencyText = backupFrequency === 'daily' ? 'täglich' : 'sonntags';
       setSuccessMessage(`✓ Einstellungen gespeichert! Nächstes Backup ${frequencyText} um ${backupSchedule} Uhr`);
@@ -251,12 +223,7 @@ export default function Backup() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/v1/backups`, {
-        method: "POST",
-        credentials: "include",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiRequest("/api/v1/backups", { method: "POST" });
       await loadBackups();
     } catch (err) {
       setError(err.message || "Backup fehlgeschlagen");
@@ -272,12 +239,7 @@ export default function Backup() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/v1/backups/${encodeURIComponent(id)}/restore`, {
-        method: "POST",
-        credentials: "include",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiRequest(`/api/v1/backups/${encodeURIComponent(id)}/restore`, { method: "POST" });
       await loadBackups();
       alert("✓ System erfolgreich wiederhergestellt!");
     } catch (err) {
@@ -294,12 +256,7 @@ export default function Backup() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/v1/backups/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiRequest(`/api/v1/backups/${encodeURIComponent(id)}`, { method: "DELETE" });
       await loadBackups();
     } catch (err) {
       setError(err.message || "Löschen fehlgeschlagen");

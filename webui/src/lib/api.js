@@ -159,6 +159,9 @@ function clearAuth() {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
   localStorage.removeItem('csrfToken')
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('csrf_token')
 }
 
 async function refreshAccessToken() {
@@ -215,6 +218,7 @@ function redirectToLogin() {
 }
 
 function buildHeaders(accessToken, headersOverride = {}) {
+  const csrfToken = localStorage.getItem('csrfToken') || localStorage.getItem('csrf_token') || ''
   const headers = {
     'Content-Type': 'application/json',
     ...headersOverride,
@@ -222,6 +226,9 @@ function buildHeaders(accessToken, headersOverride = {}) {
 
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`
+  }
+  if (csrfToken && !headers['X-CSRF-Token']) {
+    headers['X-CSRF-Token'] = csrfToken
   }
 
   return headers

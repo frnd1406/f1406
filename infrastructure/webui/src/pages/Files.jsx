@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { authHeaders } from "../utils/auth";
 import {
   FolderOpen,
@@ -23,6 +23,10 @@ import {
   Eye,
   RefreshCw,
   Trash,
+  UploadCloud,
+  FolderPlus,
+  Home,
+  ChevronRight,
 } from "lucide-react";
 
 const API_BASE =
@@ -113,6 +117,15 @@ export default function Files() {
   const [previewItem, setPreviewItem] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Drag & Drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // New Folder modal state
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const loadFiles = async (target = path) => {
     if (!authHeaders().Authorization) {
@@ -398,6 +411,114 @@ export default function Files() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Drag & Drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      setSelectedFile(files[0]);
+      // Auto-upload after drop
+      setUploading(true);
+      setError("");
+      const form = new FormData();
+      form.append("file", files[0]);
+      form.append("path", path);
+
+      try {
+        const headers = authHeaders();
+        delete headers['Content-Type'];
+
+        const res = await fetch(`${API_BASE}/api/v1/storage/upload`, {
+          method: "POST",
+          body: form,
+          credentials: "include",
+          headers: headers,
+        });
+        if (!res.ok) {
+          throw new Error(`Upload failed: HTTP ${res.status}`);
+        }
+        setSelectedFile(null);
+        await loadFiles(path);
+      } catch (err) {
+        setError(err.message || "Unknown error");
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  // New Folder creation
+  const handleCreateFolder = async () => {
+    if (!newFolderName || newFolderName.trim() === '') {
+      setError('Ordnername darf nicht leer sein');
+      return;
+    }
+
+    setCreatingFolder(true);
+    setError("");
+
+    try {
+      const folderPath = joinPath(path, newFolderName.trim());
+      const res = await fetch(`${API_BASE}/api/v1/storage/mkdir`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...authHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path: folderPath }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Ordner erstellen fehlgeschlagen: HTTP ${res.status}`);
+      }
+
+      setShowNewFolderModal(false);
+      setNewFolderName("");
+      await loadFiles(path);
+    } catch (err) {
+      setError(err.message || "Fehler beim Erstellen des Ordners");
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
+
+  // Breadcrumb navigation
+  const getBreadcrumbs = () => {
+    if (path === '/') return [{ name: 'Home', path: '/' }];
+
+    const parts = path.split('/').filter(Boolean);
+    const breadcrumbs = [{ name: 'Home', path: '/' }];
+
+    let currentPath = '';
+    parts.forEach((part) => {
+      currentPath += `/${part}`;
+      breadcrumbs.push({ name: part, path: currentPath });
+    });
+
+    return breadcrumbs;
+  };
+
+  const navigateToBreadcrumb = (breadcrumbPath) => {
+    setPath(breadcrumbPath);
+    loadFiles(breadcrumbPath);
+  };
+
   // File/Folder Card Component for Grid View
   const FileCard = ({ item }) => {
     const Icon = getFileIcon(item.name, item.isDir);
@@ -489,120 +610,101 @@ export default function Files() {
     );
   };
 
+  const breadcrumbs = getBreadcrumbs();
+
   return (
     <div className="space-y-6">
-
-      {/* Path Navigation & View Toggle */}
-      <GlassCard>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FolderOpen className="text-blue-400" size={24} />
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Current Path</p>
-              <p className="text-lg font-semibold text-white font-mono">{path}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Trash Button */}
-            <button
-              onClick={() => { setShowTrash(!showTrash); if (!showTrash) loadTrash(); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${showTrash ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-white/5 text-slate-300 border-white/10'} hover:bg-white/10 hover:text-white border transition-all`}
-            >
-              <Trash size={18} />
-              <span className="text-sm font-medium">Papierkorb</span>
-              {trashedFiles.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-bold">
-                  {trashedFiles.length}
-                </span>
-              )}
-            </button>
-
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded ${viewMode === "list" ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white'} transition-all`}
-                title="List View"
-              >
-                <List size={18} />
-              </button>
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded ${viewMode === "grid" ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white'} transition-all`}
-                title="Grid View"
-              >
-                <Grid3x3 size={18} />
-              </button>
-            </div>
-
-            {/* Go Up Button */}
-            {!showTrash && path !== "/" && (
-              <button
-                onClick={goUp}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-all"
-              >
-                <ArrowUp size={18} />
-                <span className="text-sm font-medium">Go Up</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Upload Section */}
-      {!showTrash && (
-        <GlassCard>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex-1 w-full">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Upload File
-              </label>
-              <div className="relative">
-                <input
-                  type="file"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-slate-400
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-lg file:border-0
-                    file:text-sm file:font-medium
-                    file:bg-blue-500/20 file:text-blue-400
-                    hover:file:bg-blue-500/30
-                    file:cursor-pointer file:transition-all
-                    cursor-pointer"
-                />
-              </div>
-              {selectedFile && (
-                <p className="mt-2 text-xs text-slate-400">
-                  Selected: <span className="text-white font-medium">{selectedFile.name}</span> ({formatFileSize(selectedFile.size)})
-                </p>
-              )}
-            </div>
-            <button
-              onClick={handleUpload}
-              disabled={uploading || !selectedFile}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] mt-auto"
-            >
-              {uploading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span className="text-sm font-medium">Uploading...</span>
-                </>
-              ) : (
-                <>
-                  <Upload size={18} />
-                  <span className="text-sm font-medium">Upload</span>
-                </>
-              )}
-            </button>
-          </div>
-        </GlassCard>
-      )}
 
       {/* Error Display */}
       {error && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
           <p className="text-rose-400 text-sm font-medium">{error}</p>
+        </div>
+      )}
+
+      {/* Hidden File Input for Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={(e) => {
+          setSelectedFile(e.target.files?.[0] || null);
+          if (e.target.files?.[0]) {
+            handleUpload();
+          }
+        }}
+        className="hidden"
+      />
+
+      {/* New Folder Modal */}
+      {showNewFolderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md animate-in zoom-in-95 duration-200">
+            <GlassCard>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-blue-500/20 border border-blue-500/30">
+                    <FolderPlus size={20} className="text-blue-400" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">Neuer Ordner</h2>
+                </div>
+                <button
+                  onClick={() => { setShowNewFolderModal(false); setNewFolderName(""); }}
+                  className="p-2 rounded-lg bg-slate-800/50 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/10 hover:border-rose-500/30 transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Ordnername
+                  </label>
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newFolderName) handleCreateFolder();
+                      if (e.key === 'Escape') { setShowNewFolderModal(false); setNewFolderName(""); }
+                    }}
+                    placeholder="Mein Ordner"
+                    className="w-full px-4 py-2.5 bg-slate-800/50 border border-white/10 rounded-lg text-white focus:border-blue-500/50 focus:bg-slate-800 focus:outline-none transition-all"
+                    autoFocus
+                  />
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    Wird erstellt in: <span className="text-blue-400 font-mono">{path}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
+                  <button
+                    onClick={() => { setShowNewFolderModal(false); setNewFolderName(""); }}
+                    className="px-4 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 transition-all"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={handleCreateFolder}
+                    disabled={creatingFolder || !newFolderName}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                  >
+                    {creatingFolder ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Erstelle...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FolderPlus size={16} />
+                        <span>Erstellen</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
         </div>
       )}
 
@@ -664,14 +766,140 @@ export default function Files() {
           )}
         </GlassCard>
       ) : (
-        /* Files View */
-        <GlassCard>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-white font-semibold text-lg tracking-tight">Files & Folders</h3>
-              <p className="text-slate-400 text-xs mt-1">{files.length} items</p>
+        /* Files View with Unified Toolbar */
+        <div
+          className="relative"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {/* Drag & Drop Overlay */}
+          {isDragging && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
+              <div className="p-12 rounded-2xl border-4 border-dashed border-blue-400 bg-blue-500/10">
+                <UploadCloud size={64} className="text-blue-400 mx-auto mb-4" />
+                <p className="text-2xl font-bold text-blue-400">Dateien hier ablegen</p>
+                <p className="text-slate-300 text-sm mt-2">Zum Hochladen loslassen</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          <GlassCard className="!p-0">
+            {/* Unified Toolbar */}
+            <div className="p-4 border-b border-white/5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                {/* Left: Breadcrumbs */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {breadcrumbs.map((crumb, index) => (
+                    <div key={crumb.path} className="flex items-center gap-2">
+                      {index === 0 ? (
+                        <button
+                          onClick={() => navigateToBreadcrumb(crumb.path)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-all"
+                        >
+                          <Home size={16} />
+                          <span className="text-sm font-medium">{crumb.name}</span>
+                        </button>
+                      ) : (
+                        <>
+                          <ChevronRight size={16} className="text-slate-600" />
+                          <button
+                            onClick={() => navigateToBreadcrumb(crumb.path)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                              index === breadcrumbs.length - 1
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10'
+                            }`}
+                          >
+                            {crumb.name}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  <div className="ml-2 px-2 py-1 rounded-lg bg-slate-800/50 border border-white/5">
+                    <span className="text-xs text-slate-400">{files.length} items</span>
+                  </div>
+                </div>
+
+                {/* Right: Actions */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Upload Button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                    title="Upload File"
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span className="hidden sm:inline text-sm font-medium">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud size={16} />
+                        <span className="hidden sm:inline text-sm font-medium">Upload</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* New Folder Button */}
+                  <button
+                    onClick={() => setShowNewFolderModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all"
+                    title="New Folder"
+                  >
+                    <FolderPlus size={16} />
+                    <span className="hidden sm:inline text-sm font-medium">New Folder</span>
+                  </button>
+
+                  {/* Refresh Button */}
+                  <button
+                    onClick={() => loadFiles(path)}
+                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 transition-all"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={`p-2 rounded ${viewMode === "list" ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white'} transition-all`}
+                      title="List View"
+                    >
+                      <List size={16} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={`p-2 rounded ${viewMode === "grid" ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white'} transition-all`}
+                      title="Grid View"
+                    >
+                      <Grid3x3 size={16} />
+                    </button>
+                  </div>
+
+                  {/* Trash Button */}
+                  <button
+                    onClick={() => { setShowTrash(!showTrash); if (!showTrash) loadTrash(); }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg ${showTrash ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-white/5 text-slate-300 border-white/10'} hover:bg-white/10 hover:text-white border transition-all`}
+                  >
+                    <Trash size={16} />
+                    <span className="hidden sm:inline text-sm font-medium">Trash</span>
+                    {trashedFiles.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-bold">
+                        {trashedFiles.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Files Content */}
+            <div className="p-6">
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -809,7 +1037,9 @@ export default function Files() {
               </table>
             </div>
           )}
-        </GlassCard>
+            </div>
+          </GlassCard>
+        </div>
       )}
 
       {/* Preview Modal */}

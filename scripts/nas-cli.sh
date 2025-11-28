@@ -525,7 +525,7 @@ rebuild_service() {
     echo ""
     echo "1) API"
     echo "2) WebUI"
-    echo "3) Monitoring Agent"
+    echo "3) Monitoring"
     echo "4) Analysis Agent"
     echo "5) Pentester Agent"
     echo "0) Abbrechen"
@@ -535,7 +535,7 @@ rebuild_service() {
     case $service_choice in
         1) service="api" ;;
         2) service="webui" ;;
-        3) service="monitoring-agent" ;;
+        3) service="monitoring" ;;
         4) service="analysis-agent" ;;
         5) service="pentester-agent" ;;
         0) return ;;
@@ -662,7 +662,7 @@ logs_single_service() {
     echo "2) WebUI"
     echo "3) Postgres"
     echo "4) Redis"
-    echo "5) Monitoring Agent"
+    echo "5) Monitoring"
     echo "6) Analysis Agent"
     echo "7) Pentester Agent"
     echo "0) Abbrechen"
@@ -674,7 +674,7 @@ logs_single_service() {
         2) service="webui" ;;
         3) service="postgres" ;;
         4) service="redis" ;;
-        5) service="monitoring-agent" ;;
+        5) service="monitoring" ;;
         6) service="analysis-agent" ;;
         7) service="pentester-agent" ;;
         0) return ;;

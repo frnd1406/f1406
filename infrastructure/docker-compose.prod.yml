@@ -81,9 +81,9 @@ services:
     networks:
       - nas-network
 
-  monitoring-agent:
+  monitoring:
     image: nas-monitoring:1.0.0
-    container_name: nas-monitoring-agent
+    container_name: nas-monitoring
     env_file:
       - ./.env.prod
     environment:

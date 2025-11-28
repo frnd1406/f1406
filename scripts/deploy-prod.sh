@@ -87,7 +87,7 @@ fi
 # 7. Finaler Neustart & Stabilisierung
 # Notwendig, damit API die nun existierende DB findet und Frontend die API
 echo -e "${YELLOW}🔄 Finaler Neustart zur Stabilisierung...${NC}"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" restart api webui monitoring-agent analysis-agent pentester-agent
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" restart api webui monitoring analysis-agent pentester-agent
 
 # 8. Health Checks & Validation
 echo -e "${YELLOW}🏥 Validiere Container-Status...${NC}"
@@ -95,7 +95,7 @@ sleep 5 # Kurze Pause für Container-Start
 
 # Liste der kritischen Container
 CRITICAL_CONTAINERS=("postgres" "api" "webui")
-OPTIONAL_CONTAINERS=("monitoring-agent" "analysis-agent" "pentester-agent")
+OPTIONAL_CONTAINERS=("monitoring" "analysis-agent" "pentester-agent")
 
 # Funktion zum Prüfen eines Container-Status
 check_container() {

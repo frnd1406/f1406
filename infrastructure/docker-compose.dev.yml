@@ -133,6 +133,30 @@ services:
       - agent-network
       - nas-network
 
+  ai-knowledge-agent:
+    build:
+      context: ./ai-knowledge-agent
+      dockerfile: Dockerfile
+    container_name: nas-ai-knowledge-agent
+    environment:
+      DATABASE_URL: "postgres://nas_user:nas_dev_password@postgres:5432/nas_db"
+      MODEL_NAME: "sentence-transformers/all-MiniLM-L6-v2"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - nas-network
+
 volumes:
   postgres_data:
     driver: local

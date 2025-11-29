@@ -66,6 +66,17 @@ status_explain() {
   esac
 }
 
+status_matches_expected() {
+  local code=$1 expected=$2
+  IFS='/' read -ra parts <<<"$expected"
+  for e in "${parts[@]}"; do
+    if [ "$code" = "$e" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 require_cmd() {
   for cmd in "$@"; do
     command -v "$cmd" >/dev/null 2>&1 || fail "Befehl fehlt: $cmd"
@@ -107,7 +118,7 @@ http_request() {
   parsed=$(echo "$body" | jq -c '.' 2>/dev/null || echo "$body")
 
   local msg; msg=$(status_explain "$code")
-  if [ "$code" = "200" ]; then
+  if status_matches_expected "$code" "$expected"; then
     echo -e "${GREEN}✅${NC} ${method} ${path}  ${GREEN}${code}${NC} ${msg}"
     [ -n "$parsed" ] && [ "$VERBOSE" = "true" ] && echo "$parsed"
     return 0
@@ -185,6 +196,43 @@ test_endpoints() {
   done
 
   [ "$failures" -eq 0 ] && ok "Alle Tests bestanden" || fail "$failures Tests fehlgeschlagen"
+}
+
+# --- Fetch tokens via login --------------------------------------------------
+login_and_set_tokens() {
+  read -r -p "E-Mail: " email
+  read -r -s -p "Passwort: " password
+  echo ""
+
+  if [ -z "$email" ] || [ -z "$password" ]; then
+    warn "E-Mail oder Passwort leer. Abbruch."
+    return 1
+  fi
+  local payload
+  payload=$(printf '{"email":"%s","password":"%s"}' "$email" "$password")
+
+  local resp
+  resp=$(curl -s -X POST "${API_URL}/auth/login" \
+    -H "Content-Type: application/json" \
+    --data "$payload")
+
+  local token refresh csrf
+  token=$(echo "$resp" | jq -r '.access_token // empty')
+  refresh=$(echo "$resp" | jq -r '.refresh_token // empty')
+  csrf=$(echo "$resp" | jq -r '.csrf_token // empty')
+
+  if [ -z "$token" ] || [ -z "$csrf" ]; then
+    echo -e "${RED}❌ Login fehlgeschlagen. Antwort:${NC} $resp"
+    return 1
+  fi
+
+  export JWT_TOKEN="$token"
+  export REFRESH_TOKEN="$refresh"
+  export CSRF_TOKEN="$csrf"
+
+  echo -e "${GREEN}✅ Login OK${NC}"
+  echo -e "JWT_TOKEN: $(echo "$JWT_TOKEN" | head -c 24)…"
+  echo -e "CSRF_TOKEN: $(echo "$CSRF_TOKEN" | head -c 12)…"
 }
 
 # --- Git Savepoint -----------------------------------------------------------
@@ -448,6 +496,7 @@ main_menu() {
       "${YELLOW}│${NC} 7) ✅ API Health Check (erweitert)       ${YELLOW}│${NC}" \
       "${YELLOW}│${NC} 8) 🐳 Docker Clean Rebuild               ${YELLOW}│${NC}" \
       "${YELLOW}│${NC} 9) 🚀 Deploy Prod                         ${YELLOW}│${NC}" \
+      "${YELLOW}│${NC} L) 🔐 Login & Tokens setzen               ${YELLOW}│${NC}" \
       "${YELLOW}│${NC} 0) ❌ Beenden                             ${YELLOW}│${NC}" \
       "${YELLOW}└──────────────────────────────────────────────┘${NC}"
     read -r -p "Auswahl: " choice
@@ -461,6 +510,7 @@ main_menu() {
       7) api_health_check_full; read -r -p "Weiter mit Enter..." _ ;;
       8) docker_clean_rebuild; read -r -p "Weiter mit Enter..." _ ;;
       9) deploy_prod; read -r -p "Weiter mit Enter..." _ ;;
+      [Ll]) login_and_set_tokens; read -r -p "Weiter mit Enter..." _ ;;
       0) exit 0 ;;
       *) warn "Ungültige Auswahl"; sleep 1 ;;
     esac

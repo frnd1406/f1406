@@ -18,6 +18,7 @@ COMPOSE_FILE="$INFRA_DIR/docker-compose.prod.yml"
 ENV_FILE="$INFRA_DIR/.env.prod"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-$(basename "$INFRA_DIR")}"
 DC_CMD="docker compose -f \"$COMPOSE_FILE\""
+NETWORK_NAME="${PROJECT_NAME}_nas-network"
 
 API_URL_DEFAULT="https://felix-freund.com"
 API_URL="${API_URL:-$API_URL_DEFAULT}"
@@ -41,6 +42,29 @@ fail() { echo -e "${RED}❌ $*${NC}" >&2; exit 1; }
 info() { echo -e "${BLUE}ℹ️  $*${NC}"; }
 ok()   { echo -e "${GREEN}✅ $*${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $*${NC}"; }
+
+status_explain() {
+  case "$1" in
+    200) echo "OK" ;;
+    201) echo "Created" ;;
+    204) echo "No Content" ;;
+    400) echo "Bad Request (Payload/Parameter fehlerhaft)" ;;
+    401) echo "Unauthorized (Token fehlt/ungültig)" ;;
+    402) echo "Payment Required" ;;
+    403) echo "Forbidden (keine Berechtigung)" ;;
+    404) echo "Not Found (Route/Resource fehlt)" ;;
+    409) echo "Conflict (Zustand kollidiert)" ;;
+    413) echo "Payload Too Large" ;;
+    415) echo "Unsupported Media Type" ;;
+    429) echo "Too Many Requests (Rate Limit)" ;;
+    500) echo "Internal Server Error" ;;
+    502) echo "Bad Gateway" ;;
+    503) echo "Service Unavailable" ;;
+    504) echo "Gateway Timeout" ;;
+    000) echo "Verbindungsfehler" ;;
+    *)   echo "Status $1" ;;
+  esac
+}
 
 require_cmd() {
   for cmd in "$@"; do
@@ -82,12 +106,13 @@ http_request() {
   local parsed
   parsed=$(echo "$body" | jq -c '.' 2>/dev/null || echo "$body")
 
-  if [ "$code" = "$expected" ]; then
-    ok "$method $path ($code)"
+  local msg; msg=$(status_explain "$code")
+  if [ "$code" = "200" ]; then
+    echo -e "${GREEN}✅${NC} ${method} ${path}  ${GREEN}${code}${NC} ${msg}"
     [ -n "$parsed" ] && [ "$VERBOSE" = "true" ] && echo "$parsed"
     return 0
   else
-    echo -e "${RED}❌ $method $path - erwartet $expected, erhalten $code${NC}"
+    echo -e "${RED}❌${NC} ${method} ${path}  ${RED}${code}${NC} ${msg} (expected: ${expected})"
     [ -n "$parsed" ] && echo -e "${YELLOW}Antwort:${NC} $parsed"
     return 1
   fi
@@ -254,6 +279,160 @@ tail_logs() {
   eval $DC_CMD logs -f --tail=100 $flags ${svc:-}
 }
 
+# --- Extended API Health Check (container-free) -----------------------------
+api_health_check_full() {
+  info "Starte erweiterten API Health Check gegen ${API_URL}"
+  local failures=0
+  # Erwartete Status-Codes für anonyme Calls
+  local checks=(
+    "GET /health 200"
+    "POST /auth/register 400"
+    "POST /auth/login 400"
+    "POST /auth/refresh 400"
+    "GET /api/v1/auth/csrf 200"
+    "GET /api/v1/storage/files 401"
+    "POST /api/v1/storage/upload 401"
+    "GET /api/v1/backups 401"
+    "GET /api/v1/system/settings 401"
+  )
+  for c in "${checks[@]}"; do
+    IFS=' ' read -r m p exp <<<"$c"
+    printf "%s " "${BLUE}➜${NC}"
+    echo "${m} ${p}"
+    http_request "$m" "$p" "$exp" 8 "" || failures=$((failures+1))
+  done
+  [ "$failures" -eq 0 ] && ok "Alle Basis-Checks bestanden" || fail "$failures Checks fehlgeschlagen"
+}
+
+# --- Docker Clean Rebuild ----------------------------------------------------
+docker_clean_rebuild() {
+  info "Docker Clean Rebuild (Compose: $COMPOSE_FILE)"
+  read -r -p "Welcher Service? (all/api/webui/…) [all]: " svc
+  svc=${svc:-all}
+  read -r -p "Aggressiven Cache prune durchführen? (y/N): " force
+  echo ""
+
+  info "[1/5] Cache aufräumen"
+  docker image prune -f || true
+  docker builder prune -f || true
+  if [[ "$force" =~ ^[Yy]$ ]]; then
+    warn "Aggressiver prune (--all --volumes)"
+    docker builder prune -af || true
+    docker system prune -af --volumes || true
+  fi
+
+  info "[2/5] Container stoppen"
+  if [ "$svc" = "all" ]; then
+    eval $DC_CMD down --remove-orphans || true
+  else
+    eval $DC_CMD stop "$svc" || true
+    eval $DC_CMD rm -f "$svc" || true
+  fi
+
+  info "[3/5] Alte Images entfernen"
+  if [ "$svc" = "all" ]; then
+    docker images | grep "nas-" | awk '{print $3}' | xargs -r docker rmi -f || true
+  else
+    docker images | grep "nas-$svc" | awk '{print $3}' | xargs -r docker rmi -f || true
+  fi
+
+  info "[4/5] Neu bauen (--no-cache)"
+  (cd "$INFRA_DIR" && if [ "$svc" = "all" ]; then eval $DC_CMD build --no-cache; else eval $DC_CMD build --no-cache "$svc"; fi)
+
+  info "[5/5] Starten"
+  if [ "$svc" = "all" ]; then
+    eval $DC_CMD up -d
+  else
+    eval $DC_CMD up -d "$svc"
+  fi
+
+  info "Status:"
+  if [ "$svc" = "all" ]; then
+    eval $DC_CMD ps
+  else
+    eval $DC_CMD ps "$svc"
+  fi
+  ok "Rebuild abgeschlossen."
+}
+
+# --- Smart waits for deployment ---------------------------------------------
+smart_wait_pg() {
+  local retries=30 delay=2
+  info "Warte auf Postgres (pg_isready)..."
+  for ((i=1; i<=retries; i++)); do
+    if eval $DC_CMD exec -T postgres pg_isready -U nas_user -d nas_db -h localhost >/dev/null 2>&1; then
+      ok "Postgres ist bereit."
+      return 0
+    fi
+    echo -e "${YELLOW}  Versuch $i/$retries...${NC}"
+    sleep "$delay"
+  done
+  fail "Postgres wurde nicht bereit."
+}
+
+smart_wait_api() {
+  local retries=30 delay=2
+  info "Warte auf API (/health)..."
+  for ((i=1; i<=retries; i++)); do
+    if docker run --rm --network "$NETWORK_NAME" curlimages/curl:8.9.1 -fsS http://api:8080/health >/dev/null 2>&1; then
+      ok "API ist erreichbar."
+      return 0
+    fi
+    echo -e "${YELLOW}  Versuch $i/$retries...${NC}"
+    sleep "$delay"
+  done
+  fail "API (/health) nicht erreichbar."
+}
+
+apply_db_seed_if_reset() {
+  local do_reset=$1
+  if [ "$do_reset" != "true" ]; then
+    return 0
+  fi
+  info "Starte DB-Init (Clean Slate)..."
+  if [ -f "$INFRA_DIR/db/init.sql" ]; then
+    eval $DC_CMD exec -T postgres psql -U nas_user -d nas_db < "$INFRA_DIR/db/init.sql"
+  fi
+  if [ -f "$INFRA_DIR/db/migrations/001_add_email_verification.sql" ]; then
+    eval $DC_CMD exec -T postgres psql -U nas_user -d nas_db < "$INFRA_DIR/db/migrations/001_add_email_verification.sql"
+  fi
+  ok "DB-Init abgeschlossen."
+}
+
+# --- Deploy Prod -------------------------------------------------------------
+deploy_prod() {
+  [ -f "$ENV_FILE" ] || fail ".env.prod fehlt ($ENV_FILE)"
+  [ -f "$COMPOSE_FILE" ] || fail "docker-compose.prod.yml fehlt ($COMPOSE_FILE)"
+
+  echo -e "${BLUE}╔══════════════════════════════════════════════╗${NC}"
+  echo -e "${BLUE}║${NC}   🚀 NAS.AI Production Deployment               ${BLUE}║${NC}"
+  echo -e "${BLUE}╚══════════════════════════════════════════════╝${NC}"
+  echo ""
+
+  read -r -p "Datenbank komplett zurücksetzen? (y/N): " ans
+  DO_RESET="false"
+  [[ "$ans" =~ ^[Yy]$ ]] && DO_RESET="true"
+
+  info "Stoppe Container..."
+  if [ "$DO_RESET" = "true" ]; then
+    eval $DC_CMD down -v --remove-orphans
+  else
+    eval $DC_CMD down --remove-orphans
+  fi
+
+  info "Starte Compose (build + up)..."
+  eval $DC_CMD up -d --build
+
+  smart_wait_pg
+  apply_db_seed_if_reset "$DO_RESET"
+  smart_wait_api
+
+  info "Status:"
+  eval $DC_CMD ps
+  ok "Deployment abgeschlossen."
+  echo -e "${YELLOW}Logs:${NC} $DC_CMD logs -f --no-log-prefix"
+}
+
 # --- Menu --------------------------------------------------------------------
 main_menu() {
   while true; do
@@ -266,6 +445,9 @@ main_menu() {
       "${YELLOW}│${NC} 4) 📚 API Docs generieren                 ${YELLOW}│${NC}" \
       "${YELLOW}│${NC} 5) 💾 Git Savepoint (add/commit/push)    ${YELLOW}│${NC}" \
       "${YELLOW}│${NC} 6) 📜 Docker Logs (optional no-prefix)   ${YELLOW}│${NC}" \
+      "${YELLOW}│${NC} 7) ✅ API Health Check (erweitert)       ${YELLOW}│${NC}" \
+      "${YELLOW}│${NC} 8) 🐳 Docker Clean Rebuild               ${YELLOW}│${NC}" \
+      "${YELLOW}│${NC} 9) 🚀 Deploy Prod                         ${YELLOW}│${NC}" \
       "${YELLOW}│${NC} 0) ❌ Beenden                             ${YELLOW}│${NC}" \
       "${YELLOW}└──────────────────────────────────────────────┘${NC}"
     read -r -p "Auswahl: " choice
@@ -276,6 +458,9 @@ main_menu() {
       4) generate_api_docs; read -r -p "Weiter mit Enter..." _ ;;
       5) git_savepoint; read -r -p "Weiter mit Enter..." _ ;;
       6) tail_logs ;;
+      7) api_health_check_full; read -r -p "Weiter mit Enter..." _ ;;
+      8) docker_clean_rebuild; read -r -p "Weiter mit Enter..." _ ;;
+      9) deploy_prod; read -r -p "Weiter mit Enter..." _ ;;
       0) exit 0 ;;
       *) warn "Ungültige Auswahl"; sleep 1 ;;
     esac

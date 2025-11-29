@@ -30,9 +30,9 @@ func (r *UserRepositoryX) CreateUser(ctx context.Context, username, email, passw
 	user := &models.User{}
 
 	query := `
-		INSERT INTO users (username, email, password_hash, email_verified)
-		VALUES ($1, $2, $3, FALSE)
-		RETURNING id, username, email, password_hash, email_verified, verified_at, created_at, updated_at
+		INSERT INTO users (username, email, password_hash, role, email_verified)
+		VALUES ($1, $2, $3, 'user', FALSE)
+		RETURNING id, username, email, password_hash, role, email_verified, verified_at, created_at, updated_at
 	`
 
 	err := r.db.QueryRowxContext(ctx, query, username, email, passwordHash).StructScan(user)
@@ -57,7 +57,7 @@ func (r *UserRepositoryX) FindByEmail(ctx context.Context, email string) (*model
 	user := &models.User{}
 
 	query := `
-		SELECT id, username, email, password_hash, email_verified, verified_at, created_at, updated_at
+		SELECT id, username, email, password_hash, role, email_verified, verified_at, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -83,7 +83,7 @@ func (r *UserRepositoryX) FindByID(ctx context.Context, id string) (*models.User
 	user := &models.User{}
 
 	query := `
-		SELECT id, username, email, password_hash, email_verified, verified_at, created_at, updated_at
+		SELECT id, username, email, password_hash, role, email_verified, verified_at, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -114,7 +114,7 @@ func (r *UserRepositoryX) FindByIDs(ctx context.Context, ids []string) ([]*model
 
 	// Use IN query with sqlx.In helper
 	query, args, err := sqlx.In(`
-		SELECT id, username, email, password_hash, email_verified, verified_at, created_at, updated_at
+		SELECT id, username, email, password_hash, role, email_verified, verified_at, created_at, updated_at
 		FROM users
 		WHERE id IN (?)
 	`, ids)
@@ -238,7 +238,7 @@ func (r *UserRepositoryX) List(ctx context.Context, limit, offset int) ([]*model
 	users := []*models.User{}
 
 	query := `
-		SELECT id, username, email, password_hash, email_verified, verified_at, created_at, updated_at
+		SELECT id, username, email, password_hash, role, email_verified, verified_at, created_at, updated_at
 		FROM users
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2

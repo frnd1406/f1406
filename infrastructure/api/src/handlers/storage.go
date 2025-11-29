@@ -14,19 +14,36 @@ import (
 
 func handleStorageError(c *gin.Context, err error, logger *logrus.Logger, requestID string) {
 	status := http.StatusBadRequest
+	message := "storage operation failed"
+
+	// Map specific errors to appropriate HTTP status codes and messages
 	if errors.Is(err, services.ErrPathTraversal) {
 		status = http.StatusForbidden
-	}
-	if os.IsNotExist(err) {
+		message = "access denied: path traversal detected"
+	} else if errors.Is(err, services.ErrInvalidFileType) {
+		status = http.StatusBadRequest
+		message = "invalid file type: only images, documents, videos, and archives are allowed"
+	} else if errors.Is(err, services.ErrFileTooLarge) {
+		status = http.StatusBadRequest
+		message = "file too large: maximum upload size is 100MB"
+	} else if os.IsNotExist(err) {
 		status = http.StatusNotFound
+		message = "file or directory not found"
 	}
 
 	logger.WithFields(logrus.Fields{
 		"request_id": requestID,
 		"error":      err.Error(),
+		"status":     status,
 	}).Warn("storage: request failed")
 
-	c.JSON(status, gin.H{"error": "storage operation failed"})
+	c.JSON(status, gin.H{
+		"error": gin.H{
+			"code":       "storage_error",
+			"message":    message,
+			"request_id": requestID,
+		},
+	})
 }
 
 type renameRequest struct {

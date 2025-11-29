@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',  -- RBAC: user or admin
     email_verified BOOLEAN DEFAULT FALSE,
     verified_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -17,12 +18,14 @@ CREATE TABLE IF NOT EXISTS users (
 
     -- Constraints
     CONSTRAINT username_min_length CHECK (length(username) >= 3),
-    CONSTRAINT email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+    CONSTRAINT email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'))  -- Valid roles only
 );
 
--- Index on email for fast lookups
+-- Indexes for fast lookups
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_email_verified ON users(email_verified);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);  -- RBAC index
 
 -- Refresh tokens table (optional - for tracking)
 CREATE TABLE IF NOT EXISTS refresh_tokens (

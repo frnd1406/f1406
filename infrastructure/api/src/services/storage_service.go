@@ -16,6 +16,56 @@ import (
 )
 
 var ErrPathTraversal = errors.New("path escapes base directory")
+var ErrInvalidFileType = errors.New("file type not allowed")
+var ErrFileTooLarge = errors.New("file exceeds maximum size")
+
+// Security constants
+const MaxUploadSize = 100 * 1024 * 1024 // 100 MB
+
+// AllowedMimeTypes defines the whitelist of permitted file types
+var AllowedMimeTypes = map[string]bool{
+	// Images
+	"image/jpeg": true,
+	"image/jpg":  true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+	"image/svg+xml": true,
+
+	// Documents
+	"application/pdf": true,
+	"text/plain":      true,
+	"text/csv":        true,
+	"text/markdown":   true,
+
+	// Archives (careful - could contain malware, but needed for backups)
+	"application/zip":  true,
+	"application/x-zip-compressed": true,
+	"application/gzip": true,
+	"application/x-gzip": true,
+	"application/x-tar": true,
+
+	// Video
+	"video/mp4":  true,
+	"video/mpeg": true,
+	"video/webm": true,
+
+	// Audio
+	"audio/mpeg": true,
+	"audio/mp3":  true,
+	"audio/wav":  true,
+	"audio/ogg":  true,
+}
+
+// Magic number signatures for common file types (first 16 bytes)
+var magicNumbers = map[string][]byte{
+	"image/jpeg":       {0xFF, 0xD8, 0xFF},
+	"image/png":        {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A},
+	"image/gif":        {0x47, 0x49, 0x46, 0x38},
+	"application/pdf":  {0x25, 0x50, 0x44, 0x46},
+	"application/zip":  {0x50, 0x4B, 0x03, 0x04},
+	"video/mp4":        {0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70}, // ftyp box
+}
 
 // StorageEntry represents a file or directory item within the storage root.
 type StorageEntry struct {
@@ -133,10 +183,127 @@ func (s *StorageService) List(relPath string) ([]StorageEntry, error) {
 	return items, nil
 }
 
+// ValidateFileType checks if the file type is allowed based on magic numbers and MIME type
+func (s *StorageService) ValidateFileType(file multipart.File, filename string) error {
+	// Read first 512 bytes for magic number detection
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("failed to read file header: %w", err)
+	}
+
+	// Reset file pointer to beginning
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to reset file pointer: %w", err)
+	}
+
+	// Detect MIME type from magic numbers (more reliable than extension)
+	detectedType := http.DetectContentType(buffer[:n])
+
+	// Log detection for debugging
+	s.logger.WithFields(logrus.Fields{
+		"filename":      filename,
+		"detected_type": detectedType,
+		"bytes_read":    n,
+	}).Debug("File type detection")
+
+	// Check against whitelist
+	if !AllowedMimeTypes[detectedType] {
+		// Special case: some files might be detected as octet-stream
+		// Check magic number signatures manually
+		if detectedType == "application/octet-stream" {
+			for mimeType, magic := range magicNumbers {
+				if len(buffer) >= len(magic) && bytesMatch(buffer[:len(magic)], magic) {
+					detectedType = mimeType
+					break
+				}
+			}
+		}
+
+		// Final check after magic number verification
+		if !AllowedMimeTypes[detectedType] {
+			s.logger.WithFields(logrus.Fields{
+				"filename":      filename,
+				"detected_type": detectedType,
+			}).Warn("File type not allowed")
+			return fmt.Errorf("%w: %s (detected as %s)", ErrInvalidFileType, filename, detectedType)
+		}
+	}
+
+	// Additional check: Reject executable extensions even if MIME type passes
+	ext := strings.ToLower(filepath.Ext(filename))
+	dangerousExtensions := []string{
+		".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".vbs", ".js", ".jar",
+		".sh", ".bash", ".zsh", ".fish", ".ps1", ".app", ".deb", ".rpm",
+		".php", ".jsp", ".asp", ".aspx", ".cgi", ".pl", ".py", ".rb",
+	}
+
+	for _, dangerous := range dangerousExtensions {
+		if ext == dangerous {
+			s.logger.WithFields(logrus.Fields{
+				"filename":  filename,
+				"extension": ext,
+			}).Warn("Dangerous file extension blocked")
+			return fmt.Errorf("%w: executable or script file extension not allowed (%s)", ErrInvalidFileType, ext)
+		}
+	}
+
+	return nil
+}
+
+// bytesMatch compares two byte slices
+func bytesMatch(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ValidateFileSize checks if the file size is within allowed limits
+func (s *StorageService) ValidateFileSize(file multipart.File) error {
+	// Get file size
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	size := fileInfo.Size()
+
+	if size > MaxUploadSize {
+		s.logger.WithFields(logrus.Fields{
+			"size":     size,
+			"max_size": MaxUploadSize,
+		}).Warn("File exceeds maximum upload size")
+		return fmt.Errorf("%w: file size %d bytes exceeds maximum of %d bytes", ErrFileTooLarge, size, MaxUploadSize)
+	}
+
+	// Reset file pointer after stat
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to reset file pointer: %w", err)
+	}
+
+	return nil
+}
+
 // Save stores the provided file into the given relative directory.
 func (s *StorageService) Save(dir string, file multipart.File, filename string) error {
 	if filename == "" {
 		return fmt.Errorf("filename is required")
+	}
+
+	// SECURITY: Validate file size FIRST (before reading content)
+	if err := s.ValidateFileSize(file); err != nil {
+		return err
+	}
+
+	// SECURITY: Validate file type (magic numbers + extension check)
+	if err := s.ValidateFileType(file, filename); err != nil {
+		return err
 	}
 
 	targetDir, err := s.sanitizePath(dir)
@@ -162,6 +329,11 @@ func (s *StorageService) Save(dir string, file multipart.File, filename string) 
 	if _, err := io.Copy(dest, file); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
+
+	s.logger.WithFields(logrus.Fields{
+		"filename": filename,
+		"path":     destPath,
+	}).Info("File uploaded successfully")
 
 	return nil
 }

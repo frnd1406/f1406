@@ -267,10 +267,19 @@ func main() {
 		middleware.CSRFMiddleware(redis, logger),
 	)
 	{
+		// List and create backups - all authenticated users
 		backupV1.GET("", handlers.BackupListHandler(backupService, logger))
 		backupV1.POST("", handlers.BackupCreateHandler(backupService, cfg, logger))
-		backupV1.POST("/:id/restore", handlers.BackupRestoreHandler(backupService, logger))
-		backupV1.DELETE("/:id", handlers.BackupDeleteHandler(backupService, logger))
+
+		// SECURITY: Restore and delete require admin role (destructive operations)
+		backupV1.POST("/:id/restore",
+			middleware.AdminOnly(userRepo, logger),
+			handlers.BackupRestoreHandler(backupService, cfg, logger),
+		)
+		backupV1.DELETE("/:id",
+			middleware.AdminOnly(userRepo, logger),
+			handlers.BackupDeleteHandler(backupService, logger),
+		)
 	}
 
 	// Create HTTP server

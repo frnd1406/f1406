@@ -196,6 +196,8 @@ export default function Files() {
       // Upload each file sequentially
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        console.log(`Uploading file ${i + 1}/${files.length}:`, file.name, `Size: ${file.size} bytes`);
+
         const form = new FormData();
         form.append("file", file);
         form.append("path", path);
@@ -205,25 +207,36 @@ export default function Files() {
         const headers = authHeaders();
         delete headers['Content-Type']; // Falls vorhanden, entfernen
 
-        const res = await fetch(`${API_BASE}/api/v1/storage/upload`, {
+        const uploadUrl = `${API_BASE}/api/v1/storage/upload`;
+        console.log('Upload URL:', uploadUrl);
+        console.log('Upload headers:', headers);
+
+        const res = await fetch(uploadUrl, {
           method: "POST",
           body: form,
           credentials: "include",
           headers: headers,
         });
 
+        console.log('Upload response status:', res.status);
+
         if (res.status === 401) {
           setError("Authentifizierung fehlgeschlagen.");
           return;
         }
         if (!res.ok) {
-          throw new Error(`Upload failed for ${file.name}: HTTP ${res.status}`);
+          const errorText = await res.text().catch(() => 'No error details');
+          console.error('Upload failed:', res.status, errorText);
+          throw new Error(`Upload failed for ${file.name}: HTTP ${res.status} - ${errorText}`);
         }
+
+        console.log(`✓ Successfully uploaded: ${file.name}`);
       }
 
       setSelectedFile(null);
       await loadFiles(path);
     } catch (err) {
+      console.error('Upload error details:', err);
       setError(err.message || "Unknown error");
     } finally {
       setUploading(false);

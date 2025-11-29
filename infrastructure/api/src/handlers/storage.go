@@ -90,7 +90,7 @@ func StorageUploadHandler(storage *services.StorageService, logger *logrus.Logge
 		}
 		defer src.Close()
 
-		if err := storage.Save(path, src, fileHeader.Filename); err != nil {
+		if err := storage.Save(path, src, fileHeader); err != nil {
 			handleStorageError(c, err, logger, requestID)
 			return
 		}

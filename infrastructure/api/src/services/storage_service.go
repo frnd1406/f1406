@@ -265,14 +265,9 @@ func bytesMatch(a, b []byte) bool {
 }
 
 // ValidateFileSize checks if the file size is within allowed limits
-func (s *StorageService) ValidateFileSize(file multipart.File) error {
-	// Get file size
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to get file info: %w", err)
-	}
-
-	size := fileInfo.Size()
+func (s *StorageService) ValidateFileSize(file multipart.File, fileHeader *multipart.FileHeader) error {
+	// Get file size from FileHeader
+	size := fileHeader.Size
 
 	if size > MaxUploadSize {
 		s.logger.WithFields(logrus.Fields{
@@ -282,22 +277,19 @@ func (s *StorageService) ValidateFileSize(file multipart.File) error {
 		return fmt.Errorf("%w: file size %d bytes exceeds maximum of %d bytes", ErrFileTooLarge, size, MaxUploadSize)
 	}
 
-	// Reset file pointer after stat
-	if _, err := file.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to reset file pointer: %w", err)
-	}
-
 	return nil
 }
 
 // Save stores the provided file into the given relative directory.
-func (s *StorageService) Save(dir string, file multipart.File, filename string) error {
+func (s *StorageService) Save(dir string, file multipart.File, fileHeader *multipart.FileHeader) error {
+	filename := fileHeader.Filename
+
 	if filename == "" {
 		return fmt.Errorf("filename is required")
 	}
 
 	// SECURITY: Validate file size FIRST (before reading content)
-	if err := s.ValidateFileSize(file); err != nil {
+	if err := s.ValidateFileSize(file, fileHeader); err != nil {
 		return err
 	}
 
